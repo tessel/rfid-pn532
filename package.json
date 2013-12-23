@@ -1,0 +1,12 @@
+{
+  "name": "rfid-pn532",
+  "version": "0.0.2",
+  "description": "Library to run the PN532 RFID Reader",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": "",
+  "author": "Jon McKay <jon@technical.io>",
+  "license": "MIT"
+}
