@@ -6,6 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "hardware": {
+    "./examples": false
+  },
   "repository": "",
   "author": "Jon McKay <jon@technical.io>",
   "license": "MIT"
