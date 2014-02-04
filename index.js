@@ -6,6 +6,7 @@ var led1 = tessel.led(1).output().low();
 var led2 = tessel.led(2).output().low();
 
 rfid.initialize(tessel.port("A"), function(firmware){
+  console.log('firmware initialized')
   rfid.SAMConfig(function(config){
     led1.high();
 
