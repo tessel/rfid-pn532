@@ -30,6 +30,7 @@ function initialize(hardware, next) {
   nRST.low(); // toggle reset every time we initialize
   i2c = new hardware.I2C(PN532_I2C_ADDRESS);
 	i2c.initialize();
+  tessel.sleep(100);
   irq.input();
   nRST.high();
 
@@ -59,9 +60,10 @@ function getFirmwareVersion(next) {
     if (!ack){
       return next(0);
     }
+
     wirereaddata(12, function (firmware){
-      // console.log("FIRMWARE: ", firmware);
-      // console.log("cleaned firmware: ", response);
+      console.log("FIRMWARE: ", firmware);
+      console.log("cleaned firmware: ", response);
       next(firmware);
     });
   });
@@ -137,7 +139,7 @@ function readPassiveTargetID(cardbaudrate, next) {
 
     // read data packet
     wirereaddata(20, function(response){
-      // console.log("got response", response);
+      console.log("got response", response);
       // if (response[7] != 1){
         // return next(0x0);
       // }
@@ -192,9 +194,9 @@ function SAMConfig(next) {
 /**************************************************************************/
 // default timeout of one second
 function sendCommandCheckAck(cmd, cmdlen, next) {
-
+  console.log("send command check ack");
   var timer = 0;
-  var timeout = 5;
+  var timeout = 500;
   // write the command
   wiresendcommand(cmd, cmdlen);
   
@@ -202,9 +204,12 @@ function sendCommandCheckAck(cmd, cmdlen, next) {
   while (wirereadstatus() != PN532_I2C_READY) {
     if (timeout) {
       timer+=10;
-      if (timer > timeout)  
+      if (timer > timeout) {
+        // console.log("about to return false")
         return false;
+      }
     }
+    // console.log("sleeping");
     tessel.sleep(10);
   }
 
@@ -229,27 +234,27 @@ function wiresendcommand(cmd, cmdlen) {
   var checksum;
 
   cmdlen++;
-
-
   tessel.sleep(2);     // or whatever the delay is for waking up the board
 
   // I2C START
-  checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2;
+  // checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2; // 0 + 0 + FF
+  checksum = -1;
+
   var sendCommand = [PN532_PREAMBLE, 
     PN532_PREAMBLE, 
     PN532_STARTCODE2, 
     cmdlen, 
-    ~cmdlen + 1, 
+    (255 - cmdlen) + 1, 
     PN532_HOSTTOPN532];
 
   checksum += PN532_HOSTTOPN532;
 
   for (var i=0; i<cmdlen-1; i++) {
-   sendCommand.push(cmd[i]);
-   checksum += cmd[i];
+    sendCommand.push(cmd[i]);
+    checksum += cmd[i];
   }
-
-  sendCommand.push(~checksum);
+  checksum = checksum % 256;
+  sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
   write_register(sendCommand);
 } 
