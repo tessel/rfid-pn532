@@ -54,11 +54,13 @@ function getFirmwareVersion(next) {
   console.log("Starting firmware check...");
 
   var commandBuffer = [PN532_COMMAND_GETFIRMWAREVERSION];
-
+  console.log('about to look for ack')
   sendCommandCheckAck(commandBuffer, 1, function(ack){
+    console.log('checked ack')
     if (!ack){
       return next(0);
     }
+
     wirereaddata(12, function (firmware){
       // console.log("FIRMWARE: ", firmware);
       // console.log("cleaned firmware: ", response);
@@ -201,6 +203,7 @@ function sendCommandCheckAck(cmd, cmdlen, next) {
   // Wait for chip to say its ready!
   while (wirereadstatus() != PN532_I2C_READY) {
     if (timeout) {
+      console.log('timeout')
       timer+=10;
       if (timer > timeout)  
         return false;
@@ -268,9 +271,10 @@ function readackframe(next) {
 }
 
 function wirereadstatus() {
+  console.log('reading wire')
 	var x = irq.read();
 
-	// console.log("IRQ", x);
+	console.log("IRQ", x);
 
   if (x == 1)
     return PN532_I2C_BUSY;
