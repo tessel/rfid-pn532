@@ -3,7 +3,8 @@ RFID example
 *********************************************/
 
 var tessel = require('tessel');
-var rfid = require("../").connect(tessel, tessel.port("A"));
+console.log('Connecting...')
+var rfid = require("../").connect(tessel.port("A"));
 
 var PN532_MIFARE_ISO14443A = 0x00;
 
@@ -11,9 +12,10 @@ var led1 = tessel.led(1).output().low();
 var led2 = tessel.led(2).output().low();
 
 // Initialize RFID
+console.log('Initializing...')
 rfid.initialize(tessel.port("A"), function(firmware){
   // Configure SAM
-  rfid.SAMConfig(function(config){
+  rfid.SAMConfig(function(){
     led1.high();
     console.log("Ready to read RFID card");
      setImmediate(function loop () {

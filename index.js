@@ -3,6 +3,7 @@
 
 var tm = process.binding('tm');
 var tessel = require('tessel');
+var events = require('events');
 
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
@@ -21,35 +22,46 @@ var PN532_I2C_BUSY = 0x00;
 var PN532_I2C_READY = 0x01;
 var PN532_I2C_READYTIMEOUT = 20;
 var PN532_HOSTTOPN532 = 0xD4;
+var WAKE_UP_TIME = 100;
 
-// var irq = tessel.port("A").gpio(3);
-// var nRST = tessel.port("A").gpio(2);
-var i2c;
+// var i2c;
 
 var packetBuffer = [];
 
-function RFID (hardware, portBank) {
-  this.irq = portBank.gpio(3);
-  this.nRST = portBank.gpio(2);
+function RFID (hardware, next) {
+  var self = this;
 
-  this.nRST.output();
-  this.nRST.low(); // toggle reset every time we initialize
-  i2c = new hardware.I2C(PN532_I2C_ADDRESS);
-  i2c.initialize();
-  tessel.sleep(100);
-  this.irq.input();
-  this.nRST.high();
-  // this.i2c = new this.hardware.I2C(PN532_I2C_ADDRESS);
+  self.irq = hardware.gpio(3);
+  self.nRST = hardware.gpio(2);
+
+  self.nRST.output();
+  self.nRST.low(); // toggle reset every time we initialize
+
+  self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
+  self.i2c.initialize();
+
+  self.irq.input();
+  // setTimeout(function () {
+  //   self.nRST.high();
+  //   // self.getFirmwareVersion(function (version) {
+  //   //   if (!version) {
+  //   //     throw "Cannot connect to pn532.";
+  //   //   }
+  //   //   self.emit('connected', version);
+  //   // });
+  // }, WAKE_UP_TIME);
+  self.nRST.high();
+  self.emit('connected');
 }
 
-RFID.prototype.initialize = function (hardware, next) {
+util.inherits(RFID, events.EventEmitter);
 
+RFID.prototype.initialize = function (hardware, next) {
   this.getFirmwareVersion(function(firmware){
     next(firmware);
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
   // Once Reset actually works...
-
 }
 
 /**************************************************************************/
@@ -322,7 +334,7 @@ RFID.prototype.wirereaddata = function (numBytes, next) {
 RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next)
 {
 
-  i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
+  this.i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
     next(err, data);
   });
 }
@@ -331,13 +343,13 @@ RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next)
 // Write a single byte to the register.
 RFID.prototype.write_register  = function (dataToWrite)
 {
-  return i2c.send(dataToWrite);
+  return this.i2c.send(dataToWrite);
 }
 
 // Write a single byte to the register.
 RFID.prototype.write_one_register = function (dataToWrite)
 {
-  return i2c.send([dataToWrite]);
+  return this.i2c.send([dataToWrite]);
 }
 
 exports.RFID = RFID;
