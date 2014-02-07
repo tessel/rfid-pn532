@@ -57,18 +57,19 @@ RFID.prototype.initialize = function (hardware, next) {
 */
 /**************************************************************************/
 RFID.prototype.getFirmwareVersion = function (next) {
+  var self = this;
   var response;
 
   // console.log("Starting firmware check...");
 
   var commandBuffer = [PN532_COMMAND_GETFIRMWAREVERSION];
 
-  sendCommandCheckAck(commandBuffer, 1, function(ack){
+  self.sendCommandCheckAck(commandBuffer, 1, function(ack){
     if (!ack){
       return next(0);
     }
 
-    wirereaddata(12, function (firmware){
+    self.wirereaddata(12, function (firmware){
       // console.log("FIRMWARE: ", firmware);
       // console.log("cleaned firmware: ", response);
       next(firmware);
@@ -114,19 +115,20 @@ RFID.prototype.getFirmwareVersion = function (next) {
 */
 /**************************************************************************/
 RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
+  var self = this
   var commandBuffer = [
     PN532_COMMAND_INLISTPASSIVETARGET,
     1,
     cardbaudrate
   ];
   
-  sendCommandCheckAck(commandBuffer, 3, function(ack){
+  self.sendCommandCheckAck(commandBuffer, 3, function(ack){
     if (!ack) {
       return next(0x0);
     }
      // Wait for a card to enter the field
     var status = PN532_I2C_BUSY;
-    while (wirereadstatus() != PN532_I2C_READY)
+    while (self.wirereadstatus() != PN532_I2C_READY)
     {
       tessel.sleep(10);
     }
@@ -145,7 +147,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
       b13..NFCIDLen   NFCID                                      */
 
     // read data packet
-    wirereaddata(20, function(response){
+    self.wirereaddata(20, function(response){
       // console.log("got response", response);
       // if (response[7] != 1){
         // return next(0x0);
@@ -168,6 +170,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
 */
 /**************************************************************************/
 RFID.prototype.SAMConfig = function (next) {
+  var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
     0x01,
@@ -175,12 +178,12 @@ RFID.prototype.SAMConfig = function (next) {
     0x01
   ];
   
-  sendCommandCheckAck(commandBuffer, 4, function(ack){
+  self.sendCommandCheckAck(commandBuffer, 4, function(ack){
     if (!ack){
       return next(false);
     } 
     // read data packet
-    wirereaddata(8, function(response){
+    self.wirereaddata(8, function(response){
       next(response[6] == 0x15);
     });
   });
@@ -200,14 +203,14 @@ RFID.prototype.SAMConfig = function (next) {
 */
 /**************************************************************************/
 // default timeout of one second
-function sendCommandCheckAck(cmd, cmdlen, next) {
+RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   var timer = 0;
   var timeout = 500;
   // write the command
-  wiresendcommand(cmd, cmdlen);
+  this.wiresendcommand(cmd, cmdlen);
   
   // Wait for chip to say its ready!
-  while (wirereadstatus() != PN532_I2C_READY) {
+  while (this.wirereadstatus() != PN532_I2C_READY) {
     if (timeout) {
       // console.log('timeout')
       timer+=10;
@@ -221,7 +224,7 @@ function sendCommandCheckAck(cmd, cmdlen, next) {
   }
 
   // read acknowledgement
-  readackframe(function(ackbuff){
+  this.readackframe(function(ackbuff){
     if (!ackbuff){
       next(false);
     }
@@ -237,7 +240,7 @@ function sendCommandCheckAck(cmd, cmdlen, next) {
     @param  cmd       Pointer to the command buffer
 */
 /**************************************************************************/
-function wiresendcommand(cmd, cmdlen) {
+RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   var checksum;
 
   cmdlen++;
@@ -263,7 +266,7 @@ function wiresendcommand(cmd, cmdlen) {
   checksum = checksum % 256;
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
-  write_register(sendCommand);
+  this.write_register(sendCommand);
 } 
 
 /**************************************************************************/
@@ -272,14 +275,14 @@ function wiresendcommand(cmd, cmdlen) {
           the I2C ACK signal)
 */
 /**************************************************************************/
-function readackframe(next) {
+RFID.prototype.readackframe = function (next) {
   
-   wirereaddata(6, function(ackbuff){
+   this.wirereaddata(6, function(ackbuff){
     next(ackbuff);
    });
 }
 
-function wirereadstatus() {
+RFID.prototype.wirereadstatus = function () {
   var x = irq.read();
 
   // console.log("IRQ", x);
@@ -298,11 +301,11 @@ function wirereadstatus() {
     @param  n         Number of bytes to be read
 */
 /**************************************************************************/
-function wirereaddata(numBytes, next) {
+RFID.prototype.wirereaddata = function (numBytes, next) {
   
   tessel.sleep(2); 
 
-  read_registers([], numBytes+2, function(err, response){
+  this.read_registers([], numBytes+2, function(err, response){
     next(response);
   });
 }
@@ -313,7 +316,7 @@ function wirereaddata(numBytes, next) {
     @brief  I2C Helper Functions Below
 */
 /**************************************************************************/
-function read_registers (dataToWrite, bytesToRead, next)
+RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next)
 {
 
   i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
@@ -323,13 +326,13 @@ function read_registers (dataToWrite, bytesToRead, next)
 
 
 // Write a single byte to the register.
-function write_register (dataToWrite)
+RFID.prototype.write_register  = function (dataToWrite)
 {
   return i2c.send(dataToWrite);
 }
 
 // Write a single byte to the register.
-function write_one_register (dataToWrite)
+RFID.prototype.write_one_register = function (dataToWrite)
 {
   return i2c.send([dataToWrite]);
 }
@@ -349,9 +352,6 @@ function write_one_register (dataToWrite)
 //     });
 //   });
 // }
-
-// exports.initialize = initialize;
-// initialize();
 
 exports.RFID = RFID;
 exports.connect = function (hardware, portBank) {
