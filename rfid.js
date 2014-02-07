@@ -4,6 +4,9 @@
 var tm = process.binding('tm');
 var tessel = require('tessel');
 
+var util = require('util');
+var EventEmitter = require('events').EventEmitter;
+
 var PN532_COMMAND_INLISTPASSIVETARGET = 0x4A;
 var PN532_COMMAND_GETFIRMWAREVERSION = 0x02;
 var PN532_COMMAND_SAMCONFIGURATION = 0x14;
@@ -52,19 +55,18 @@ function initialize(hardware, next) {
 function getFirmwareVersion(next) {
   var response;
 
-  console.log("Starting firmware check...");
+  // console.log("Starting firmware check...");
 
   var commandBuffer = [PN532_COMMAND_GETFIRMWAREVERSION];
-  console.log('about to look for ack')
+
   sendCommandCheckAck(commandBuffer, 1, function(ack){
-    console.log('checked ack')
     if (!ack){
       return next(0);
     }
 
     wirereaddata(12, function (firmware){
-      console.log("FIRMWARE: ", firmware);
-      console.log("cleaned firmware: ", response);
+      // console.log("FIRMWARE: ", firmware);
+      // console.log("cleaned firmware: ", response);
       next(firmware);
     });
   });
@@ -140,7 +142,7 @@ function readPassiveTargetID(cardbaudrate, next) {
 
     // read data packet
     wirereaddata(20, function(response){
-      console.log("got response", response);
+      // console.log("got response", response);
       // if (response[7] != 1){
         // return next(0x0);
       // }
@@ -195,7 +197,6 @@ function SAMConfig(next) {
 /**************************************************************************/
 // default timeout of one second
 function sendCommandCheckAck(cmd, cmdlen, next) {
-  console.log("send command check ack");
   var timer = 0;
   var timeout = 500;
   // write the command
@@ -204,7 +205,7 @@ function sendCommandCheckAck(cmd, cmdlen, next) {
   // Wait for chip to say its ready!
   while (wirereadstatus() != PN532_I2C_READY) {
     if (timeout) {
-      console.log('timeout')
+      // console.log('timeout')
       timer+=10;
       if (timer > timeout) {
         // console.log("about to return false")
@@ -275,10 +276,9 @@ function readackframe(next) {
 }
 
 function wirereadstatus() {
-  console.log('reading wire')
 	var x = irq.read();
 
-	console.log("IRQ", x);
+	// console.log("IRQ", x);
 
   if (x == 1)
     return PN532_I2C_BUSY;
@@ -330,7 +330,24 @@ function write_one_register (dataToWrite)
   return i2c.send([dataToWrite]);
 }
 
+function connect (hardware, next) {
+  var PN532_MIFARE_ISO14443A = 0x00;
+
+  var led1 = tessel.led(1).output().low();
+  var led2 = tessel.led(2).output().low();
+
+  // Initialize RFID
+  rfid.initialize(hardware, function(firmware){
+    // Configure SAM
+    rfid.SAMConfig(function(config){
+      led1.high();
+      console.log("Ready to read RFID card");
+    });
+  });
+}
+
 exports.initialize = initialize;
 exports.SAMConfig = SAMConfig;
+exports.connect = connect;
 exports.readPassiveTargetID = readPassiveTargetID;
 // initialize();
