@@ -22,24 +22,27 @@ var PN532_I2C_READY = 0x01;
 var PN532_I2C_READYTIMEOUT = 20;
 var PN532_HOSTTOPN532 = 0xD4;
 
-var irq = tessel.port("A").gpio(3);
-var nRST = tessel.port("A").gpio(2);
+// var irq = tessel.port("A").gpio(3);
+// var nRST = tessel.port("A").gpio(2);
 var i2c;
 
 var packetBuffer = [];
 
 function RFID (hardware, portBank) {
+  this.irq = portBank.gpio(3);
+  this.nRST = portBank.gpio(2);
 
+  // this.i2c = new this.hardware.I2C(PN532_I2C_ADDRESS);
 }
 
 RFID.prototype.initialize = function (hardware, next) {
-  nRST.output();
-  nRST.low(); // toggle reset every time we initialize
+  this.nRST.output();
+  this.nRST.low(); // toggle reset every time we initialize
   i2c = new hardware.I2C(PN532_I2C_ADDRESS);
   i2c.initialize();
   tessel.sleep(100);
-  irq.input();
-  nRST.high();
+  this.irq.input();
+  this.nRST.high();
 
   this.getFirmwareVersion(function(firmware){
     next(firmware);
@@ -283,7 +286,7 @@ RFID.prototype.readackframe = function (next) {
 }
 
 RFID.prototype.wirereadstatus = function () {
-  var x = irq.read();
+  var x = this.irq.read();
 
   // console.log("IRQ", x);
 
@@ -336,22 +339,6 @@ RFID.prototype.write_one_register = function (dataToWrite)
 {
   return i2c.send([dataToWrite]);
 }
-
-// function connect (hardware, next) {
-//   var PN532_MIFARE_ISO14443A = 0x00;
-
-//   var led1 = tessel.led(1).output().low();
-//   var led2 = tessel.led(2).output().low();
-
-//   // Initialize RFID
-//   rfid.initialize(hardware, function(firmware){
-//     // Configure SAM
-//     rfid.SAMConfig(function(config){
-//       led1.high();
-//       console.log("Ready to read RFID card");
-//     });
-//   });
-// }
 
 exports.RFID = RFID;
 exports.connect = function (hardware, portBank) {
