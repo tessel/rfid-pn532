@@ -32,7 +32,7 @@ function RFID (hardware, portBank) {
 
 }
 
-function initialize(hardware, next) {
+RFID.prototype.initialize = function (hardware, next) {
   nRST.output();
   nRST.low(); // toggle reset every time we initialize
   i2c = new hardware.I2C(PN532_I2C_ADDRESS);
@@ -41,7 +41,7 @@ function initialize(hardware, next) {
   irq.input();
   nRST.high();
 
-  getFirmwareVersion(function(firmware){
+  this.getFirmwareVersion(function(firmware){
     next(firmware);
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
@@ -56,7 +56,7 @@ function initialize(hardware, next) {
     @returns  The chip's firmware version and ID
 */
 /**************************************************************************/
-function getFirmwareVersion(next) {
+RFID.prototype.getFirmwareVersion = function (next) {
   var response;
 
   // console.log("Starting firmware check...");
@@ -113,7 +113,7 @@ function getFirmwareVersion(next) {
     @returns 1 if everything executed properly, 0 for an error
 */
 /**************************************************************************/
-function readPassiveTargetID(cardbaudrate, next) {
+RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
   var commandBuffer = [
     PN532_COMMAND_INLISTPASSIVETARGET,
     1,
@@ -167,7 +167,7 @@ function readPassiveTargetID(cardbaudrate, next) {
     @brief  Configures the SAM (Secure Access Module)
 */
 /**************************************************************************/
-function SAMConfig(next) {
+RFID.prototype.SAMConfig = function (next) {
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
     0x01,
@@ -350,12 +350,10 @@ function write_one_register (dataToWrite)
 //   });
 // }
 
-exports.initialize = initialize;
-exports.SAMConfig = SAMConfig;
-exports.connect = connect;
-exports.readPassiveTargetID = readPassiveTargetID;
+// exports.initialize = initialize;
 // initialize();
 
+exports.RFID = RFID;
 exports.connect = function (hardware, portBank) {
   return new RFID(hardware, portBank);
 }
