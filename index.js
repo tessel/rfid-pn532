@@ -31,8 +31,11 @@ var packetBuffer = [];
 function RFID (hardware, next) {
   var self = this;
 
+  self.hardware = hardware;
   self.irq = hardware.gpio(3);
   self.nRST = hardware.gpio(2);
+  self.numListeners = 0;
+  self.listening = false;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -52,6 +55,31 @@ function RFID (hardware, next) {
   // }, WAKE_UP_TIME);
   self.nRST.high();
   self.emit('connected');
+
+  // If we get a new listener
+  self.on('newListener', function(event) {
+    if (event == "data") {
+      // Add to the number of things listening
+      self.numListeners += 1;
+      // If we're not already listening
+      if (!self.listening) {
+        // Start listening
+        self.setListening();
+      }
+    }
+  });
+
+  // If we remove a listener
+  self.on('removeListener', function(event) {
+    if (event == "data") {
+      // Remove from the number of things listening
+      self.numListeners -= 1;
+      // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
+      if (self.numListeners < 1) {
+        self.listening = 0;
+      }
+    }
+  });
 }
 
 util.inherits(RFID, events.EventEmitter);
@@ -350,6 +378,19 @@ RFID.prototype.write_register  = function (dataToWrite)
 RFID.prototype.write_one_register = function (dataToWrite)
 {
   return this.i2c.send([dataToWrite]);
+}
+
+RFID.prototype.setListening = function () {
+  var self = this;
+  self.listening = true;
+  // Loop until nothing is listening
+  self.listeningLoop = setInterval (function () {
+    if (self.numListeners) {
+      console.log("I'm listening!")
+    } else {
+      clearInterval(listeningLoop);
+    }
+  }, self.pollFrequency);
 }
 
 exports.RFID = RFID;
