@@ -32,10 +32,6 @@ function RFID (hardware, portBank) {
   this.irq = portBank.gpio(3);
   this.nRST = portBank.gpio(2);
 
-  // this.i2c = new this.hardware.I2C(PN532_I2C_ADDRESS);
-}
-
-RFID.prototype.initialize = function (hardware, next) {
   this.nRST.output();
   this.nRST.low(); // toggle reset every time we initialize
   i2c = new hardware.I2C(PN532_I2C_ADDRESS);
@@ -43,6 +39,10 @@ RFID.prototype.initialize = function (hardware, next) {
   tessel.sleep(100);
   this.irq.input();
   this.nRST.high();
+  // this.i2c = new this.hardware.I2C(PN532_I2C_ADDRESS);
+}
+
+RFID.prototype.initialize = function (hardware, next) {
 
   this.getFirmwareVersion(function(firmware){
     next(firmware);
