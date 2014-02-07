@@ -3,7 +3,7 @@ RFID example
 *********************************************/
 
 var tessel = require('tessel');
-var rfid = require("../rfid.js")//.connect(tessel.port("A"), 'next');
+var rfid = require("../")//.connect(tessel.port("A"), 'next');
 
 var PN532_MIFARE_ISO14443A = 0x00;
 
