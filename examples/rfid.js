@@ -11,10 +11,6 @@ var PN532_MIFARE_ISO14443A = 0x00;
 var led1 = tessel.led(1).output().low();
 var led2 = tessel.led(2).output().low();
 
-rfid.on('connected', function () {
-  console.log('hi')
-});
-
 // Initialize RFID
 console.log('Initializing...')
 rfid.initialize(tessel.port("A"), function(firmware){

@@ -272,7 +272,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
       next(false);
     }
     next(true);
-  })
+  });
 }
 
 /**************************************************************************/
