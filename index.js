@@ -77,9 +77,14 @@ function RFID (hardware, next) {
       self.numListeners -= 1;
       // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
       if (self.numListeners < 1) {
-        self.listening = 0;
+        self.listening = false;
       }
     }
+  });
+
+  self.on('removeAllListeners', function(event) {
+    self.numListeners = 0;
+    self.listening = false;
   });
 }
 
@@ -116,7 +121,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
     self.wirereaddata(12, function (firmware){
       // console.log("FIRMWARE: ", firmware);
       // console.log("cleaned firmware: ", response);
-      next(firmware);
+      self.SAMConfig(next);
     });
   });
 
@@ -228,8 +233,7 @@ RFID.prototype.SAMConfig = function (next) {
     } 
     // read data packet
     self.wirereaddata(8, function(response){
-      self.emit('data');
-      next(response[6] == 0x15);
+      next();
     });
   });
 }

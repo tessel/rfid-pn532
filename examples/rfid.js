@@ -13,15 +13,12 @@ var led2 = tessel.led(2).output().low();
 
 // Initialize RFID
 console.log('Initializing...')
-rfid.initialize(tessel.port("A"), function(firmware){
-  // Configure SAM
-  rfid.SAMConfig(function(){
-    led1.high();
-    console.log("Ready to read RFID card");
-    rfid.on('data', function (uid) {
-      led2.high();
-      console.log(uid)
-      led2.low();
-    });
+rfid.initialize(tessel.port("A"), function() {
+  led1.high();
+  console.log("Ready to read RFID card");
+  rfid.on('data', function (uid) {
+    led2.high();
+    console.log(uid)
+    led2.low();
   });
 });
