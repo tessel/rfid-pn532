@@ -18,13 +18,10 @@ rfid.initialize(tessel.port("A"), function(firmware){
   rfid.SAMConfig(function(){
     led1.high();
     console.log("Ready to read RFID card");
-     setImmediate(function loop () {
+    rfid.on('data', function (uid) {
+      led2.high();
+      console.log(uid)
       led2.low();
-      rfid.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
-        console.log("uid", uid);
-        led2.high();
-        setTimeout(loop, 200);
-      });
     });
   });
 });

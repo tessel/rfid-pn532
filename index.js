@@ -22,6 +22,7 @@ var PN532_I2C_BUSY = 0x00;
 var PN532_I2C_READY = 0x01;
 var PN532_I2C_READYTIMEOUT = 20;
 var PN532_HOSTTOPN532 = 0xD4;
+var PN532_MIFARE_ISO14443A = 0x00;
 var WAKE_UP_TIME = 100;
 
 // var i2c;
@@ -227,6 +228,7 @@ RFID.prototype.SAMConfig = function (next) {
     } 
     // read data packet
     self.wirereaddata(8, function(response){
+      self.emit('data');
       next(response[6] == 0x15);
     });
   });
@@ -386,7 +388,11 @@ RFID.prototype.setListening = function () {
   // Loop until nothing is listening
   self.listeningLoop = setInterval (function () {
     if (self.numListeners) {
-      console.log("I'm listening!")
+      // led2.low();
+      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
+        self.emit('data', uid);
+        // led2.high();
+      });
     } else {
       clearInterval(listeningLoop);
     }
