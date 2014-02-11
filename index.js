@@ -25,7 +25,8 @@ var PN532_HOSTTOPN532 = 0xD4;
 var PN532_MIFARE_ISO14443A = 0x00;
 var WAKE_UP_TIME = 100;
 
-// var i2c;
+var led1 = tessel.led(1).output().low();
+var led2 = tessel.led(2).output().low();
 
 var packetBuffer = [];
 
@@ -45,17 +46,14 @@ function RFID (hardware, next) {
   self.i2c.initialize();
 
   self.irq.input();
-  // setTimeout(function () {
-  //   self.nRST.high();
-  //   // self.getFirmwareVersion(function (version) {
-  //   //   if (!version) {
-  //   //     throw "Cannot connect to pn532.";
-  //   //   }
-  //   //   self.emit('connected', version);
-  //   // });
-  // }, WAKE_UP_TIME);
-  self.nRST.high();
-  self.emit('connected');
+  setTimeout(function () {
+    self.nRST.high();
+    self.getFirmwareVersion(function (version) {
+      if (!version) {
+        throw "Cannot connect to pn532.";
+      }
+    });
+  }, WAKE_UP_TIME);
 
   // If we get a new listener
   self.on('newListener', function(event) {
@@ -121,7 +119,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
     self.wirereaddata(12, function (firmware){
       // console.log("FIRMWARE: ", firmware);
       // console.log("cleaned firmware: ", response);
-      self.SAMConfig(next);
+      self.SAMConfig();
     });
   });
 
@@ -218,7 +216,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
     @brief  Configures the SAM (Secure Access Module)
 */
 /**************************************************************************/
-RFID.prototype.SAMConfig = function (next) {
+RFID.prototype.SAMConfig = function () {
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
@@ -233,7 +231,8 @@ RFID.prototype.SAMConfig = function (next) {
     } 
     // read data packet
     self.wirereaddata(8, function(response){
-      next();
+      self.emit('connected');
+      led1.high();
     });
   });
 }
@@ -392,10 +391,10 @@ RFID.prototype.setListening = function () {
   // Loop until nothing is listening
   self.listeningLoop = setInterval (function () {
     if (self.numListeners) {
-      // led2.low();
+      led2.low();
       self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
         self.emit('data', uid);
-        // led2.high();
+        led2.high();
       });
     } else {
       clearInterval(listeningLoop);
