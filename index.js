@@ -177,11 +177,25 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
     }
      // Wait for a card to enter the field
     var status = PN532_I2C_BUSY;
-    while (self.wirereadstatus() != PN532_I2C_READY)
-    {
-      tessel.sleep(10);
-    }
-   
+    var wait = setInterval(function () {
+      if (self.wirereadstatus() === PN532_I2C_READY) {
+        clearInterval(wait);
+        // read data packet
+        self.wirereaddata(20, function(response){
+          // console.log("got response", response);
+          // if (response[7] != 1){
+            // return next(0x0);
+          // }
+
+          var uid = [];
+          for (var i=0; i < response[12]; i++) 
+          {
+            uid[i] = response[13+i];
+          }
+          next(uid);
+        }, 10);
+      }
+
     // check some basic stuff
     /* ISO14443A card response should be in the following format:
     
@@ -194,22 +208,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
       b11             SEL_RES
       b12             NFCID Length
       b13..NFCIDLen   NFCID                                      */
-
-    // read data packet
-    self.wirereaddata(20, function(response){
-      // console.log("got response", response);
-      // if (response[7] != 1){
-        // return next(0x0);
-      // }
-
-      var uid = [];
-      for (var i=0; i < response[12]; i++) 
-      {
-        uid[i] = response[13+i];
-      }
-      next(uid);
     });
-
   });
 }
 
@@ -256,30 +255,34 @@ RFID.prototype.SAMConfig = function (next) {
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   var timer = 0;
   var timeout = 500;
-  // write the command
-  this.wiresendcommand(cmd, cmdlen);
-  
-  // Wait for chip to say its ready!
-  while (this.wirereadstatus() != PN532_I2C_READY) {
-    if (timeout) {
-      // console.log('timeout')
-      timer+=10;
-      if (timer > timeout) {
-        // console.log("about to return false")
-        return false;
-      }
-    }
-    // console.log("sleeping");
-    tessel.sleep(10);
-  }
 
-  // read acknowledgement
-  this.readackframe(function(ackbuff){
-    if (!ackbuff){
-      next(false);
+  var self = this;
+
+  // write the command
+  self.wiresendcommand(cmd, cmdlen);
+  
+  // Wait for chip to say it's ready
+  var timeoutLoop = setInterval(function () {
+    if (self.wirereadstatus() != PN532_I2C_READY) {
+      if (timeout) {
+        timer+=10;
+        if (timer > timeout) {
+          console.log('Connection timed out. Try again?')
+          return false;
+        }
+      }
+    } else {
+      // Ready! Continue:
+      clearInterval(timeoutLoop);
+      // read acknowledgement
+      self.readackframe(function(ackbuff){
+        if (!ackbuff){
+          next(false);
+        }
+        next(true);
+      });
     }
-    next(true);
-  });
+  }, 10);
 }
 
 /**************************************************************************/
