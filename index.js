@@ -391,10 +391,10 @@ RFID.prototype.setListening = function () {
   // Loop until nothing is listening
   self.listeningLoop = setInterval (function () {
     if (self.numListeners) {
-      led2.low();
       self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
-        self.emit('data', uid);
         led2.high();
+        self.emit('data', uid);
+        led2.low();
       });
     } else {
       clearInterval(listeningLoop);
