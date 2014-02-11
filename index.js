@@ -51,6 +51,8 @@ function RFID (hardware, next) {
     self.getFirmwareVersion(function (version) {
       if (!version) {
         throw "Cannot connect to pn532.";
+      } else {
+        self.emit('connected', version);
       }
     });
   }, WAKE_UP_TIME);
@@ -119,7 +121,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
     self.wirereaddata(12, function (firmware){
       // console.log("FIRMWARE: ", firmware);
       // console.log("cleaned firmware: ", response);
-      self.SAMConfig();
+      self.SAMConfig(next);
     });
   });
 
@@ -216,7 +218,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
     @brief  Configures the SAM (Secure Access Module)
 */
 /**************************************************************************/
-RFID.prototype.SAMConfig = function () {
+RFID.prototype.SAMConfig = function (next) {
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
@@ -231,7 +233,7 @@ RFID.prototype.SAMConfig = function () {
     } 
     // read data packet
     self.wirereaddata(8, function(response){
-      self.emit('connected');
+      next(response);
       led1.high();
     });
   });
