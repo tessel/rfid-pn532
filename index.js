@@ -409,6 +409,12 @@ RFID.prototype.setListening = function () {
   }, self.pollFrequency);
 }
 
+RFID.prototype.checkCardType = function (uid) {
+  // Checks the type of RFID card.
+  // The card we have included is the Mifare Classic 1k.
+
+}
+
 // /***** Mifare Classic Functions DIRECTLY from Adafruit https://github.com/adafruit/Adafruit-PN532/blob/master/Adafruit_PN532.cpp ******/
 
 // /**************************************************************************/
@@ -417,28 +423,34 @@ RFID.prototype.setListening = function () {
 //       in the sector (block 0 relative to the current sector)
 // */
 // /**************************************************************************/
-// bool Adafruit_PN532::mifareclassic_IsFirstBlock (uint32_t uiBlock)
-// {
-//   // Test if we are in the small or big sectors
-//   if (uiBlock < 128)
-//     return ((uiBlock) % 4 == 0);
-//   else
-//     return ((uiBlock) % 16 == 0);
-// }
+
+// ** Translated from C++ **
+
+RFID.prototype.mifareclassic_IsFirstBlock = function(uiBlock) {
+  // Test if we are in the small or big sectors
+  if (uiBlock < 128) {
+    return ((uiBlock % 4) == 0);
+  } else {
+    return ((uiBlock % 16) == 0);
+  }
+}
 
 // /**************************************************************************/
 // /*! 
 //       Indicates whether the specified block number is the sector trailer
 // */
 // /**************************************************************************/
-// bool Adafruit_PN532::mifareclassic_IsTrailerBlock (uint32_t uiBlock)
-// {
-//   // Test if we are in the small or big sectors
-//   if (uiBlock < 128)
-//     return ((uiBlock + 1) % 4 == 0);
-//   else
-//     return ((uiBlock + 1) % 16 == 0);
-// }
+
+// ** Translated from C++ **
+
+RFID.prototype.mifareclassic_IsTrailerBlock = function(uiBlock) {
+  // Test if we are in the small or big sectors
+  if (uiBlock < 128) {
+    return (((uiBlock + 1) % 4) == 0);
+  } else {
+    return (((uiBlock + 1) % 16) == 0);
+  }
+}
 
 // /**************************************************************************/
 // /*! 
@@ -459,6 +471,15 @@ RFID.prototype.setListening = function () {
 //     @returns 1 if everything executed properly, 0 for an error
 // */
 // /**************************************************************************/
+
+// ** Translated from C++ **
+
+RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNumber, keyNumber, keyData) {
+  var len = new Number;
+  var i = new Number;
+
+  console.log("Trying to authenticate card...")
+}
 // uint8_t Adafruit_PN532::mifareclassic_AuthenticateBlock (uint8_t * uid, uint8_t uidLen, uint32_t blockNumber, uint8_t keyNumber, uint8_t * keyData)
 // {
 //   uint8_t len;
