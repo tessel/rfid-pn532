@@ -297,31 +297,33 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
 /**************************************************************************/
 RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   var checksum;
+  var self = this;
 
   cmdlen++;
-  tessel.sleep(2);     // or whatever the delay is for waking up the board
 
-  // I2C START
-  // checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2; // 0 + 0 + FF
-  checksum = -1;
+  setTimeout(function () {
+    // I2C START
+    // checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2; // 0 + 0 + FF
+    checksum = -1;
 
-  var sendCommand = [PN532_PREAMBLE, 
-    PN532_PREAMBLE, 
-    PN532_STARTCODE2, 
-    cmdlen, 
-    (255 - cmdlen) + 1, 
-    PN532_HOSTTOPN532];
+    var sendCommand = [PN532_PREAMBLE, 
+      PN532_PREAMBLE, 
+      PN532_STARTCODE2, 
+      cmdlen, 
+      (255 - cmdlen) + 1, 
+      PN532_HOSTTOPN532];
 
-  checksum += PN532_HOSTTOPN532;
+    checksum += PN532_HOSTTOPN532;
 
-  for (var i=0; i<cmdlen-1; i++) {
-    sendCommand.push(cmd[i]);
-    checksum += cmd[i];
-  }
-  checksum = checksum % 256;
-  sendCommand.push((255 - checksum));
-  sendCommand.push(PN532_POSTAMBLE);
-  this.write_register(sendCommand);
+    for (var i=0; i<cmdlen-1; i++) {
+      sendCommand.push(cmd[i]);
+      checksum += cmd[i];
+    }
+    checksum = checksum % 256;
+    sendCommand.push((255 - checksum));
+    sendCommand.push(PN532_POSTAMBLE);
+    self.write_register(sendCommand);
+  }, 2);
 } 
 
 /**************************************************************************/
@@ -357,12 +359,13 @@ RFID.prototype.wirereadstatus = function () {
 */
 /**************************************************************************/
 RFID.prototype.wirereaddata = function (numBytes, next) {
-  
-  tessel.sleep(2); 
+  var self = this;
 
-  this.read_registers([], numBytes+2, function(err, response){
-    next(response);
-  });
+  setTimeout(function () {
+    this.read_registers([], numBytes+2, function(err, response){
+      next(response);
+    });
+  }, 2);
 }
 
 
