@@ -695,7 +695,7 @@ RFID.prototype.mifareclassic_FormatNDEF = function () {
 // /**************************************************************************/
 
 RFID.prototype.mifareclassic_WriteNDEFURI = function(sectorNumber,uriIdentifier, url) {
-  
+
 }
 
 // uint8_t Adafruit_PN532::mifareclassic_WriteNDEFURI (uint8_t sectorNumber, uint8_t uriIdentifier, const char * url)
