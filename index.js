@@ -482,6 +482,8 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
   var i = new Number;
 
   console.log("Trying to authenticate card...")
+
+  // Prepare the authentication command
 }
 // uint8_t Adafruit_PN532::mifareclassic_AuthenticateBlock (uint8_t * uid, uint8_t uidLen, uint32_t blockNumber, uint8_t keyNumber, uint8_t * keyData)
 // {
@@ -544,6 +546,10 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
 //     @returns 1 if everything executed properly, 0 for an error
 // */
 // /**************************************************************************/
+
+RFID.prototype.mifareclassic_ReadDataBlock = function (blockNumber, data) {
+
+}
 // uint8_t Adafruit_PN532::mifareclassic_ReadDataBlock (uint8_t blockNumber, uint8_t * data)
 // {
 //   #ifdef MIFAREDEBUG
@@ -604,6 +610,11 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
 //     @returns 1 if everything executed properly, 0 for an error
 // */
 // /**************************************************************************/
+
+RFID.prototype.mifareclassic_WriteDataBlock = function(blockNumber, data) {
+
+}
+
 // uint8_t Adafruit_PN532::mifareclassic_WriteDataBlock (uint8_t blockNumber, uint8_t * data)
 // {
 //   #ifdef MIFAREDEBUG
@@ -640,6 +651,11 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
 //     @returns 1 if everything executed properly, 0 for an error
 // */
 // /**************************************************************************/
+
+RFID.prototype.mifareclassic_FormatNDEF = function () {
+
+}
+
 // uint8_t Adafruit_PN532::mifareclassic_FormatNDEF (void)
 // {
 //   uint8_t sectorbuffer1[16] = {0x14, 0x01, 0x03, 0xE1, 0x03, 0xE1, 0x03, 0xE1, 0x03, 0xE1, 0x03, 0xE1, 0x03, 0xE1, 0x03, 0xE1};
@@ -677,6 +693,11 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
 //     @returns 1 if everything executed properly, 0 for an error
 // */
 // /**************************************************************************/
+
+RFID.prototype.mifareclassic_WriteNDEFURI = function(sectorNumber,uriIdentifier, url) {
+  
+}
+
 // uint8_t Adafruit_PN532::mifareclassic_WriteNDEFURI (uint8_t sectorNumber, uint8_t uriIdentifier, const char * url)
 // {
 //   // Figure out how long the string is
