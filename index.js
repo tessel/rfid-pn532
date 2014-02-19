@@ -177,39 +177,39 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
     }
      // Wait for a card to enter the field
     var status = PN532_I2C_BUSY;
-    while (self.wirereadstatus() != PN532_I2C_READY)
-    {
-      tessel.sleep(10);
-    }
-   
-    // check some basic stuff
-    /* ISO14443A card response should be in the following format:
-    
-      byte            Description
-      -------------   ------------------------------------------
-      b0..6           Frame header and preamble
-      b7              Tags Found
-      b8              Tag Number (only one used in this example)
-      b9..10          SENS_RES
-      b11             SEL_RES
-      b12             NFCID Length
-      b13..NFCIDLen   NFCID                                      */
+    var waitLoop = setInterval(function(){
+      if (self.wirereadstatus() == PN532_I2C_READY){
+        clearInterval(waitLoop);
 
-    // read data packet
-    self.wirereaddata(20, function(response){
-      // console.log("got response", response);
-      // if (response[7] != 1){
-        // return next(0x0);
-      // }
+        // check some basic stuff
+        /* ISO14443A card response should be in the following format:
+        
+          byte            Description
+          -------------   ------------------------------------------
+          b0..6           Frame header and preamble
+          b7              Tags Found
+          b8              Tag Number (only one used in this example)
+          b9..10          SENS_RES
+          b11             SEL_RES
+          b12             NFCID Length
+          b13..NFCIDLen   NFCID                                      */
 
-      var uid = [];
-      for (var i=0; i < response[12]; i++) 
-      {
-        uid[i] = response[13+i];
+        // read data packet
+        self.wirereaddata(20, function(response){
+          // console.log("got response", response);
+          // if (response[7] != 1){
+            // return next(0x0);
+          // }
+
+          var uid = [];
+          for (var i=0; i < response[12]; i++) 
+          {
+            uid[i] = response[13+i];
+          }
+          next(uid);
+        });
       }
-      next(uid);
-    });
-
+    },10);
   });
 }
 
