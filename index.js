@@ -38,6 +38,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
+  self.pollFrequency = 100;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -209,7 +210,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
           next(uid);
         });
       }
-    },10);
+    }, 10);
   });
 }
 
@@ -340,7 +341,7 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   checksum = checksum % 256;
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
-  this.write_register(sendCommand);
+  self.write_register(sendCommand);
 } 
 
 /**************************************************************************/
