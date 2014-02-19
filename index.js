@@ -256,11 +256,34 @@ RFID.prototype.SAMConfig = function (next) {
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   var timer = 0;
   var timeout = 500;
+  var self = this;
   // write the command
-  this.wiresendcommand(cmd, cmdlen);
+  self.wiresendcommand(cmd, cmdlen);
+
+  // // Wait for chip to say it's ready!
+  // var waitLoop = setInterval(function(){
+  //   if (self.wirereadstatus() == PN532_I2C_READY) {
+  //     // Success- ready
+  //     clearInterval(waitLoop);
+  //     // read acknowledgement
+  //     self.readackframe(function(ackbuff){
+  //       if (!ackbuff){
+  //         next(false);
+  //       }
+  //       next(true);
+  //     });
+  //   } else if (timer > timeout) {
+  //     // Failure- timed out
+  //     clearInterval(waitLoop);
+  //     return false;
+  //   } else {
+  //     // Increase timeout timer
+  //     timer +=10;
+  //   }
+  // }, 10);
   
-  // Wait for chip to say its ready!
-  while (this.wirereadstatus() != PN532_I2C_READY) {
+  // Wait for chip to say it's ready!
+  while (self.wirereadstatus() != PN532_I2C_READY) {
     if (timeout) {
       // console.log('timeout')
       timer+=10;
@@ -274,7 +297,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   }
 
   // read acknowledgement
-  this.readackframe(function(ackbuff){
+  self.readackframe(function(ackbuff){
     if (!ackbuff){
       next(false);
     }
