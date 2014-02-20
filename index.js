@@ -259,6 +259,10 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   // write the command
   self.wiresendcommand(cmd, cmdlen);
 
+// OKAY! This fails due to a bug on the runtime.
+// But it is also kind of a sucky way to do this.
+// So rewrite anyway.
+
   // // Wait for chip to say it's ready!
   // console.log('initiating loop')
   // var waitLoop = setInterval(function(){
