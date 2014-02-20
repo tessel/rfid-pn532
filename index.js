@@ -179,7 +179,7 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
      // Wait for a card to enter the field
     var status = PN532_I2C_BUSY;
     var waitLoop = setInterval(function(){
-      if (self.wirereadstatus() == PN532_I2C_READY){
+      if (self.wirereadstatus() === PN532_I2C_READY){
         clearInterval(waitLoop);
 
         // check some basic stuff
@@ -255,17 +255,19 @@ RFID.prototype.SAMConfig = function (next) {
 /**************************************************************************/
 // default timeout of one second
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
-  var timer = 0;
-  var timeout = 500;
   var self = this;
   // write the command
   self.wiresendcommand(cmd, cmdlen);
 
   // // Wait for chip to say it's ready!
+  // console.log('initiating loop')
   // var waitLoop = setInterval(function(){
+  //   console.log('Looping...')
   //   if (self.wirereadstatus() == PN532_I2C_READY) {
+  //     console.log("Status: Ready!")
   //     // Success- ready
   //     clearInterval(waitLoop);
+  //     clearTimeout(timeout);
   //     // read acknowledgement
   //     self.readackframe(function(ackbuff){
   //       if (!ackbuff){
@@ -273,15 +275,16 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   //       }
   //       next(true);
   //     });
-  //   } else if (timer > timeout) {
-  //     // Failure- timed out
-  //     clearInterval(waitLoop);
-  //     return false;
-  //   } else {
-  //     // Increase timeout timer
-  //     timer +=10;
   //   }
   // }, 10);
+
+  // // Timeout on waiting for the chip
+  // var timeout = setTimeout(function(){
+  //   console.log('Connection timed out');
+  //   clearInterval(waitLoop);
+  //   clearTimeout(timeout);
+  //   return false;
+  // }, 500);
   
   // Wait for chip to say it's ready!
   while (self.wirereadstatus() != PN532_I2C_READY) {
