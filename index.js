@@ -258,59 +258,53 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   var self = this;
   // write the command
   self.wiresendcommand(cmd, cmdlen);
+  var timer = 0;
+  var timeout = 50;
 
-// OKAY! This fails due to a bug on the runtime.
-// But it is also kind of a sucky way to do this.
-// So rewrite anyway.
+  return checkReadiness(timer);
 
-  // // Wait for chip to say it's ready!
-  // console.log('initiating loop')
-  // var waitLoop = setInterval(function(){
-  //   console.log('Looping...')
-  //   if (self.wirereadstatus() == PN532_I2C_READY) {
-  //     console.log("Status: Ready!")
-  //     // Success- ready
-  //     clearInterval(waitLoop);
-  //     clearTimeout(timeout);
-  //     // read acknowledgement
-  //     self.readackframe(function(ackbuff){
-  //       if (!ackbuff){
-  //         next(false);
-  //       }
-  //       next(true);
-  //     });
-  //   }
-  // }, 10);
-
-  // // Timeout on waiting for the chip
-  // var timeout = setTimeout(function(){
-  //   console.log('Connection timed out');
-  //   clearInterval(waitLoop);
-  //   clearTimeout(timeout);
-  //   return false;
-  // }, 500);
-  
-  // Wait for chip to say it's ready!
-  while (self.wirereadstatus() != PN532_I2C_READY) {
-    if (timeout) {
-      // console.log('timeout')
-      timer+=10;
-      if (timer > timeout) {
-        // console.log("about to return false")
-        return false;
+function checkReadiness (timer) {
+  if (self.wirereadstatus() == PN532_I2C_READY) {
+    // console.log('Status: Ready!');
+    self.readackframe(function(ackbuff){
+      if (!ackbuff){
+        next(false);
+      } else {
+        next(true);
       }
-    }
-    // console.log("sleeping");
-    tessel.sleep(10);
+    });
+  } else if (timer > timeout) {
+    // console.log('Connection timed out.');
+    return false;
+  } else {
+    checkReadiness(timer + 1);
   }
+}
 
-  // read acknowledgement
-  self.readackframe(function(ackbuff){
-    if (!ackbuff){
-      next(false);
-    }
-    next(true);
-  });
+//   // Wait for chip to say it's ready!
+//   while (self.wirereadstatus() != PN532_I2C_READY) {
+//     console.log(self.wirereadstatus(), PN532_I2C_READY)
+//     if (timeout) {
+//       // console.log('timeout')
+//       timer+=10;
+//       if (timer > timeout) {
+//         console.log("about to return false")
+//         return false;
+//       }
+//     }
+//     // console.log("sleeping");
+//     tessel.sleep(10);
+//   }
+//   console.log('Status: Ready!');
+//   console.log(self.wirereadstatus(), PN532_I2C_READY)
+
+//   // read acknowledgement
+//   self.readackframe(function(ackbuff){
+//     if (!ackbuff){
+//       next(false);
+//     }
+//     next(true);
+//   });
 }
 
 /**************************************************************************/
