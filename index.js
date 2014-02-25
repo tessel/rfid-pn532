@@ -263,48 +263,23 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
 
   return checkReadiness(timer);
 
-function checkReadiness (timer) {
-  if (self.wirereadstatus() == PN532_I2C_READY) {
-    // console.log('Status: Ready!');
-    self.readackframe(function(ackbuff){
-      if (!ackbuff){
-        next(false);
-      } else {
-        next(true);
-      }
-    });
-  } else if (timer > timeout) {
-    // console.log('Connection timed out.');
-    return false;
-  } else {
-    checkReadiness(timer + 1);
+  function checkReadiness (timer) {
+    if (self.wirereadstatus() == PN532_I2C_READY) {
+      // console.log('Status: Ready!');
+      self.readackframe(function(ackbuff){
+        if (!ackbuff){
+          next(false);
+        } else {
+          next(true);
+        }
+      });
+    } else if (timer > timeout) {
+      // console.log('Connection timed out.');
+      return false;
+    } else {
+      setTimeout(checkReadiness(timer + 1), 10);
+    }
   }
-}
-
-//   // Wait for chip to say it's ready!
-//   while (self.wirereadstatus() != PN532_I2C_READY) {
-//     console.log(self.wirereadstatus(), PN532_I2C_READY)
-//     if (timeout) {
-//       // console.log('timeout')
-//       timer+=10;
-//       if (timer > timeout) {
-//         console.log("about to return false")
-//         return false;
-//       }
-//     }
-//     // console.log("sleeping");
-//     tessel.sleep(10);
-//   }
-//   console.log('Status: Ready!');
-//   console.log(self.wirereadstatus(), PN532_I2C_READY)
-
-//   // read acknowledgement
-//   self.readackframe(function(ackbuff){
-//     if (!ackbuff){
-//       next(false);
-//     }
-//     next(true);
-//   });
 }
 
 /**************************************************************************/
@@ -320,11 +295,10 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   var self = this;
 
   cmdlen++;
-  tessel.sleep(2);     // or whatever the delay is for waking up the board
 
-  // I2C START
-  // checksum = PN532_PREAMBLE + PN532_PREAMBLE + PN532_STARTCODE2; // 0 + 0 + FF
-  checksum = -1;
+ //  tessel.sleep(2);     // or whatever the delay is for waking up the board
+
+ checksum = -1;
 
   var sendCommand = [PN532_PREAMBLE, 
     PN532_PREAMBLE, 
@@ -343,6 +317,7 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
   self.write_register(sendCommand);
+
 } 
 
 /**************************************************************************/
@@ -379,11 +354,11 @@ RFID.prototype.wirereadstatus = function () {
 /**************************************************************************/
 RFID.prototype.wirereaddata = function (numBytes, next) {
   
-  tessel.sleep(2); 
-
+  // tessel.sleep(2); 
   this.read_registers([], numBytes+2, function(err, response){
     next(response);
   });
+
 }
 
 
