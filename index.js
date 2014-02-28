@@ -1,6 +1,29 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
+/*
+ACCESSING EEPROM
+- Get UID
+- Select card
+  - card returns SAK (Select Acknowledge) code (see sec. 9.4, see ref.7)
+- Authenticate chosen sector according to its rules (def in its trailer block)
+  - Authentication key: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for new cards
+  - Three pass auth
+    - specify sector to be accessed, choose key A or B
+    - card sends random number as challenge to reader
+    - reader calculates response to challenge using secret key
+    - reader sends response, additional random number challenge
+    - card verifies reader response, sends its own challenge response back
+    - reader verifies response
+- Mem ops
+  - read block
+  - write block
+  - decrement
+  - increment
+  - restore
+  - transfer
+*/
+
 var tm = process.binding('tm');
 var tessel = require('tessel');
 var events = require('events');
