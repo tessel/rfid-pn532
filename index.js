@@ -1,29 +1,6 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
-/*
-ACCESSING EEPROM
-- Get UID
-- Select card
-  - card returns SAK (Select Acknowledge) code (see sec. 9.4, see ref.7)
-- Authenticate chosen sector according to its rules (def in its trailer block)
-  - Authentication key: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for new cards
-  - Three pass auth
-    - specify sector to be accessed, choose key A or B
-    - card sends random number as challenge to reader
-    - reader calculates response to challenge using secret key
-    - reader sends response, additional random number challenge
-    - card verifies reader response, sends its own challenge response back
-    - reader verifies response
-- Mem ops
-  - read block
-  - write block
-  - decrement
-  - increment
-  - restore
-  - transfer
-*/
-
 var tm = process.binding('tm');
 var tessel = require('tessel');
 var events = require('events');
@@ -188,22 +165,26 @@ RFID.prototype.getFirmwareVersion = function (next) {
 */
 /**************************************************************************/
 RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
-  var self = this
-  var commandBuffer = [
-    PN532_COMMAND_INLISTPASSIVETARGET,
-    1,
-    cardbaudrate
-  ];
+  var self = this;
+  self.readCard(cardbaudrate, function(Card){
+    next(Card.uid);
+  });
+
+  // var commandBuffer = [
+  //   PN532_COMMAND_INLISTPASSIVETARGET,
+  //   1,
+  //   cardbaudrate
+  // ];
   
-  self.sendCommandCheckAck(commandBuffer, 3, function(ack){
-    if (!ack) {
-      return next(0x0);
-    }
-     // Wait for a card to enter the field
-    var status = PN532_I2C_BUSY;
-    var waitLoop = setInterval(function(){
-      if (self.wirereadstatus() === PN532_I2C_READY){
-        clearInterval(waitLoop);
+  // self.sendCommandCheckAck(commandBuffer, 3, function(ack){
+  //   if (!ack) {
+  //     return next(0x0);
+  //   }
+  //    // Wait for a card to enter the field
+  //   var status = PN532_I2C_BUSY;
+  //   var waitLoop = setInterval(function(){
+  //     if (self.wirereadstatus() === PN532_I2C_READY){
+  //       clearInterval(waitLoop);
 
         // check some basic stuff
         /* ISO14443A card response should be in the following format:
@@ -218,23 +199,24 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
           b12             NFCID Length
           b13..NFCIDLen   NFCID                                      */
 
-        // read data packet
-        self.wirereaddata(20, function(response){
-          // console.log("got response", response);
-          // if (response[7] != 1){
-            // return next(0x0);
-          // }
+  //       // read data packet
+  //       self.wirereaddata(20, function(response){
+  //         // console.log("got response", response);
+  //         // if (response[7] != 1){
+  //           // return next(0x0);
+  //         // }
 
-          var uid = [];
-          for (var i=0; i < response[12]; i++) 
-          {
-            uid[i] = response[13+i];
-          }
-          next(uid);
-        });
-      }
-    }, 10);
-  });
+  //         var uid = [];
+  //         for (var i=0; i < response[12]; i++) 
+  //         {
+  //           console.log(response)
+  //           uid[i] = response[13+i];
+  //         }
+  //         next(uid);
+  //       });
+  //     }
+  //   }, 10);
+  // });
 }
 
 /**************************************************************************/
@@ -390,8 +372,7 @@ RFID.prototype.wirereaddata = function (numBytes, next) {
     @brief  I2C Helper Functions Below
 */
 /**************************************************************************/
-RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next)
-{
+RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next) {
 
   this.i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
     next(err, data);
@@ -400,14 +381,12 @@ RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next)
 
 
 // Write a single byte to the register.
-RFID.prototype.write_register  = function (dataToWrite)
-{
+RFID.prototype.write_register  = function (dataToWrite) {
   return this.i2c.send(dataToWrite);
 }
 
 // Write a single byte to the register.
-RFID.prototype.write_one_register = function (dataToWrite)
-{
+RFID.prototype.write_one_register = function (dataToWrite) {
   return this.i2c.send([dataToWrite]);
 }
 
@@ -426,6 +405,96 @@ RFID.prototype.setListening = function () {
       clearInterval(listeningLoop);
     }
   }, self.pollFrequency);
+}
+
+/*
+ACCESSING EEPROM
+- Get 4-byte (or 7-byte) UID
+  - Select card
+  - card returns SAK (Select Acknowledge) code (see sec. 9.4, see ref.7)
+- Authenticate chosen sector according to its rules (def in its trailer block)
+  by passing 6 byt Auth key
+  - Authentication key: 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for new cards
+  - Three pass auth
+    - specify sector to be accessed, choose key A or B
+    - card sends random number as challenge to reader
+    - reader calculates response to challenge using secret key
+    - reader sends response, additional random number challenge
+    - card verifies reader response, sends its own challenge response back
+    - reader verifies response
+- Mem ops
+  - read block
+  - write block
+  - decrement
+  - increment
+  - restore
+  - transfer
+*/
+
+RFID.prototype.readCard = function(cardbaudrate, next) {
+  var self = this
+  var commandBuffer = [
+    PN532_COMMAND_INLISTPASSIVETARGET,
+    1,
+    cardbaudrate
+  ];
+  
+  self.sendCommandCheckAck(commandBuffer, 3, function(ack){
+    if (!ack) {
+      return next(0x0);
+    }
+     // Wait for a card to enter the field
+    var status = PN532_I2C_BUSY;
+    var waitLoop = setInterval(function(){
+      if (self.wirereadstatus() === PN532_I2C_READY){
+        // A card has arrived! Stop waiting.
+        clearInterval(waitLoop);
+        // read data packet
+        var dataLength = 20;
+        self.wirereaddata(dataLength, function(res){
+          // parse data packet into component parts
+
+          /* ISO14443A card response should be in the following format:
+          
+            byte            Description
+            -------------   ------------------------------------------
+            b0..6           Frame header and preamble
+            b7              Tags Found
+            b8              Tag Number (only one used in this example)
+            b9..10          SENS_RES
+            b11             SEL_RES
+            b12             NFCID Length
+            b13..NFCIDLen   NFCID                                      */
+
+          var Card = new Object();
+          Card.header = res.slice(0,7);              // Frame header and preamble
+          Card.numTags = res[7];                     // Tags found
+          Card.tagNum = res[8];                      // Tag number
+          Card.SENS_RES = res.slice(9,11);           // SENS_RES
+          Card.SEL_RES = res[11];                    // SEL_RES
+          Card.idLength = res[12];                   // NFCID Length
+          Card.uid = res.slice(13,13+Card.idLength); // NFCID
+
+          next(Card);
+        });
+      }
+    }, 10);
+  });
+}
+
+RFID.prototype.accessMem = function(){
+  var self = this;
+  var authKey = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+  led1.high();
+  //get uid
+  self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
+    led2.high();
+    led2.low();
+    //write 6-byte auth key
+    console.log('writing...')
+    self.write_register(authKey);
+    console.log('theoretically written')
+  });
 }
 
 exports.RFID = RFID;
