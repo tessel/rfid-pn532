@@ -1,6 +1,8 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
+var DEBUG = 1; // 1 if debugging, 0 if not
+
 var tm = process.binding('tm');
 var tessel = require('tessel');
 var events = require('events');
@@ -102,31 +104,53 @@ RFID.prototype.initialize = function (hardware, next) {
       return firmware;
     }
   });
+  // TODO: Do something with the bank to determine the IRQ and RESET lines
+  // Once Reset actually works...
 }
 
-// Checks the firmware version of the PN5xx chip
-// returns  The chip's firmware version and ID
+/**************************************************************************/
+/*! 
+    @brief  Checks the firmware version of the PN5xx chip
+
+    @returns  The chip's firmware version and ID
+*/
+/**************************************************************************/
 RFID.prototype.getFirmwareVersion = function (next) {
   var self = this;
   var response;
 
-  // console.log("Starting firmware check...");
+  if (DEBUG) {
+    console.log("Starting firmware check...");
+  }
 
   var commandBuffer = [PN532_COMMAND_GETFIRMWAREVERSION];
 
+  if (DEBUG) {
+    console.log('Beginning sendCommandCheckAck in getFirmwareVersion...');
+  }
   self.sendCommandCheckAck(commandBuffer, 1, function(ack){
+    if (DEBUG) {
+      console.log('sendCommandCheckAck complete.');
+    }
     if (!ack){
       if (next) {
         return next(0);
       } else {
-        console.log('Err no callback sent to getFirmwareVerson');
+        if (DEBUG) {
+          console.log('Err no callback sent to getFirmwareVerson');
+        }
         return 0;
       }
     }
 
+    if (DEBUG) {
+      console.log('Reading wire data in getFirmwareVersion');
+    }
     self.wirereaddata(12, function (firmware){
-      // console.log("FIRMWARE: ", firmware);
-      // console.log("cleaned firmware: ", response);
+      if (DEBUG) {
+        console.log("FIRMWARE: ", firmware);
+        console.log("cleaned firmware: ", response);
+      }
       self.SAMConfig(next);
     });
   });
@@ -156,7 +180,11 @@ RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
   });
 }
 
-// Configures the SAM (Secure Access Module)
+/**************************************************************************/
+/*! 
+    @brief  Configures the SAM (Secure Access Module)
+*/
+/**************************************************************************/
 RFID.prototype.SAMConfig = function (next) {
   if (!next) {
     console.log('Err no callback sent to SAMConfig');
@@ -182,16 +210,20 @@ RFID.prototype.SAMConfig = function (next) {
   });
 }
 
-//  Sends a command and waits a specified period for the ACK
 
-//    @param  cmd       Pointer to the command buffer
-//    @param  cmdlen    The size of the command in bytes 
-//    @param  timeout   timeout before giving up
+/**************************************************************************/
+/*! 
+    @brief  Sends a command and waits a specified period for the ACK
+
+    @param  cmd       Pointer to the command buffer
+    @param  cmdlen    The size of the command in bytes 
+    @param  timeout   timeout before giving up
     
-//    @returns  1 if everything is OK, 0 if timeout occured before an ACK was recieved
+    @returns  1 if everything is OK, 0 if timeout occured before an
+              ACK was recieved
+*/
+/**************************************************************************/
 
-
-// default timeout of one second
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   if (!next) {
     console.log('Err no callback sent to sendCommandCheckAck');
@@ -201,13 +233,18 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   // write the command
   self.wiresendcommand(cmd, cmdlen);
   var timer = 0;
-  var timeout = 50;
+  var timeout = 100; // 1 second, intervals of 10 ms
 
+  if (DEBUG) {
+    console.log('Waiting for connection to module...');
+  }
   return checkReadiness(timer);
 
   function checkReadiness (timer) {
     if (self.wirereadstatus() == PN532_I2C_READY) {
-      // console.log('Status: Ready!');
+      if (DEBUG) {
+        console.log('Status: Ready!');
+      }
       self.readackframe(function(ackbuff){
         if (!ackbuff){
           next(false);
@@ -216,17 +253,26 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
         }
       });
     } else if (timer > timeout) {
-      // console.log('Connection timed out.');
+      if (DEBUG) {
+        console.log('Connection timed out.');
+      }
       return false;
     } else {
-      setTimeout(checkReadiness(timer + 1), 10);
+      setTimeout(function(){
+        checkReadiness(timer + 1);
+      }, 10);
     }
   }
 }
 
-// Writes a command to the PN532, automatically inserting the preamble and required frame details (checksum, len, etc.)
-// param  cmd       Pointer to the command buffer
+/**************************************************************************/
+/*! 
+    @brief  Writes a command to the PN532, automatically inserting the
+            preamble and required frame details (checksum, len, etc.)
 
+    @param  cmd       Pointer to the command buffer
+*/
+/**************************************************************************/
 RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   var checksum;
   var self = this;
@@ -259,7 +305,12 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
 
 } 
 
-// Tries to read the PN532 ACK frame (not to be confused with the I2C ACK signal)
+/**************************************************************************/
+/*! 
+    @brief  Tries to read the PN532 ACK frame (not to be confused with 
+          the I2C ACK signal)
+*/
+/**************************************************************************/
 RFID.prototype.readackframe = function (next) {
   if (!next) {
     console.log('Err no callback sent to readackframe');
@@ -273,7 +324,9 @@ RFID.prototype.readackframe = function (next) {
 RFID.prototype.wirereadstatus = function () {
   var x = this.irq.read();
 
-  // console.log("IRQ", x);
+  if (DEBUG) {
+    console.log("IRQ", x);
+  }
 
   if (x == 1)
     return PN532_I2C_BUSY;
@@ -281,23 +334,35 @@ RFID.prototype.wirereadstatus = function () {
     return PN532_I2C_READY;
 }
 
-// Reads n bytes of data from the PN532 via I2C
+/**************************************************************************/
+/*! 
+    @brief  Reads n bytes of data from the PN532 via I2C
+
+    @param  buff      Pointer to the buffer where data will be written
+    @param  n         Number of bytes to be read
+*/
+/**************************************************************************/
 RFID.prototype.wirereaddata = function (numBytes, next) {
   // tessel.sleep(2); 
   this.read_registers([], numBytes+2, function(err, response){
     next(response);
   });
+
 }
 
 
-// I2C Helper Functions
-
+/**************************************************************************/
+/*! 
+    @brief  I2C Helper Functions Below
+*/
+/**************************************************************************/
 RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next) {
 
   this.i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
     next(err, data);
   });
 }
+
 
 // Write a single byte to the register.
 RFID.prototype.write_register  = function (dataToWrite, callback) {
@@ -463,7 +528,6 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
       console.log('Failed sendCommandCheckAck in mifareclassic_AuthenticateBlock');
       return 0;
     }
-    console.log('here')
   });
 
   // Read response packet
@@ -518,6 +582,24 @@ RFID.prototype.accessMem = function() {
     }
   });
 }
+
+
+  // var authKey = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
+  // led1.high();
+  // //get uid
+  // self.readCard(PN532_MIFARE_ISO14443A, function(Card) {
+  //   led2.high();
+  //   led2.low();
+  //   console.log(Card);
+  //   //write 6-byte auth key
+  //   console.log('writing...')
+  //   self.write_register(authKey);
+  //   console.log('theoretically written')
+  //   self.wirereaddata(20, function(res) {
+  //     console.log(res)
+  //   });
+  // });
+// }
 
 exports.RFID = RFID;
 exports.connect = function (hardware, portBank) {
