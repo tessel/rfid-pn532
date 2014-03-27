@@ -370,8 +370,10 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 
 // Write a buffer of Bytes to the register.
 RFID.prototype.writeRegister  = function (dataToWrite, callback) {
-  var reply = this.i2c.send(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite));
-  callback && callback(reply);
+  this.i2c.send(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite), function(err, data) {
+    callback(err, data);
+  });
+  // callback && callback(reply); // the old way
   //  TODO
   //  Modify everything to give this function Buffers instead of Arrays
 }
