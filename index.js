@@ -56,7 +56,7 @@ function RFID (hardware, next) {
     self.nRST.high();
     self.getFirmwareVersion(function (version) {
       if (!version) {
-        throw "Cannot connect to pn532.";
+        throw "Cannot connect to PN532.";
       } else {
         self.emit('connected', version);
       }
@@ -242,12 +242,12 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
 
   function checkReadiness (timer) {
     var stat = self.wireReadStatus();
-    if (stat == PN532_I2C_READY) {
+    if (stat == PN532_I2C_READY) {    // PN532_I2C_READY = 1
       if (DEBUG) {
         console.log('Status: Ready!');
       }
-      self.readAckFrame(function(ackbuff){
-        if (!ackbuff){
+      self.readAckFrame(function(err, ackbuff){
+        if (!ackbuff || err){
           next(false);
         } else {
           next(true);
@@ -315,13 +315,13 @@ RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
           the I2C ACK signal)
 */
 /**************************************************************************/
-RFID.prototype.readAckFrame = function (next) {
-  if (!next) {
+RFID.prototype.readAckFrame = function (err, next) {
+  if (!next || err) {
     console.log('Err no callback sent to readAckFrame');
     return false;
   }
-  this.wireReadData(6, function(ackbuff){
-    next(ackbuff);
+  this.wireReadData(6, function(err, ackbuff){
+    next(err, ackbuff);
   });
 }
 
@@ -349,7 +349,7 @@ RFID.prototype.wireReadStatus = function () {
 RFID.prototype.wireReadData = function (numBytes, next) {
   // tessel.sleep(2); 
   this.readRegisters([], numBytes+2, function(err, response){
-    next(response);
+    next && next(err, response);
   });
 
 }
@@ -362,18 +362,18 @@ RFID.prototype.wireReadData = function (numBytes, next) {
 /**************************************************************************/
 RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 
-  this.i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
-    next(err, data);
+  this.i2c.transfer(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite), bytesToRead, function (err, data) {
+    next && next(err, data);
   });
 }
 
 
 // Write a buffer of Bytes to the register.
-RFID.prototype.writeRegister  = function (dataToWrite, callback) {
+RFID.prototype.writeRegister  = function (dataToWrite, next) {
   this.i2c.send(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite), function(err, data) {
-    callback(err, data);
+    next && next(err, data);
   });
-  // callback && callback(reply); // the old way
+  // next && next(reply); // the old way
   //  TODO
   //  Modify everything to give this function Buffers instead of Arrays
 }
