@@ -4,7 +4,7 @@ RFID example
 
 var tessel = require('tessel');
 console.log('Connecting...');
-var rfid = require("../").connect(tessel.port("A"));
+var rfid = require("../").connect(tessel.port("D"));
 
 rfid.on('connected', function (version) {
   console.log("Ready to read RFID card");

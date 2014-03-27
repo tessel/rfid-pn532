@@ -241,7 +241,8 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   return checkReadiness(timer);
 
   function checkReadiness (timer) {
-    if (self.wirereadstatus() == PN532_I2C_READY) {
+    var stat = self.wirereadstatus();
+    if (stat == PN532_I2C_READY) {
       if (DEBUG) {
         console.log('Status: Ready!');
       }
@@ -258,6 +259,9 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
       }
       return false;
     } else {
+      if (DEBUG) {
+        console.log('Something went wrong, so let\'s try again.\n\tstat:\t', stat, '\tready:\t', PN532_I2C_READY);
+      }
       setTimeout(function(){
         checkReadiness(timer + 1);
       }, 10);
@@ -281,7 +285,7 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
 
  //  tessel.sleep(2);     // or whatever the delay is for waking up the board
 
- checksum = -1;
+  checksum = -1;
 
   var sendCommand = [PN532_PREAMBLE, 
     PN532_PREAMBLE, 
@@ -364,17 +368,14 @@ RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next) {
 }
 
 
-// Write a single byte to the register.
+// Write a buffer of Bytes to the register.
 RFID.prototype.write_register  = function (dataToWrite, callback) {
-  return this.i2c.send(dataToWrite);
-  callback && callback;
+  var reply = this.i2c.send(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite));
+  callback && callback(reply);
+  //  TODO
+  //  Modify everything to give this function Buffers instead of Arrays
 }
 
-// Write a single byte to the register.
-RFID.prototype.write_one_register = function (dataToWrite, callback) {
-  return this.i2c.send([dataToWrite]);
-  callback && callback;
-}
 
 RFID.prototype.setListening = function () {
   var self = this;
