@@ -146,7 +146,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
     if (DEBUG) {
       console.log('Reading wire data in getFirmwareVersion');
     }
-    self.wirereaddata(12, function (firmware){
+    self.wireReadData(12, function (firmware){
       if (DEBUG) {
         console.log("FIRMWARE: ", firmware);
         console.log("cleaned firmware: ", response);
@@ -203,7 +203,7 @@ RFID.prototype.SAMConfig = function (next) {
       return next(false);
     } 
     // read data packet
-    self.wirereaddata(8, function(response){
+    self.wireReadData(8, function(response){
       next(response);
       led1.high();
     });
@@ -231,7 +231,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   }
   var self = this;
   // write the command
-  self.wiresendcommand(cmd, cmdlen);
+  self.wireSendCommand(cmd, cmdlen);
   var timer = 0;
   var timeout = 100; // 1 second, intervals of 10 ms
 
@@ -241,12 +241,12 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   return checkReadiness(timer);
 
   function checkReadiness (timer) {
-    var stat = self.wirereadstatus();
+    var stat = self.wireReadStatus();
     if (stat == PN532_I2C_READY) {
       if (DEBUG) {
         console.log('Status: Ready!');
       }
-      self.readackframe(function(ackbuff){
+      self.readAckFrame(function(ackbuff){
         if (!ackbuff){
           next(false);
         } else {
@@ -277,7 +277,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
     @param  cmd       Pointer to the command buffer
 */
 /**************************************************************************/
-RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
+RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
   var checksum;
   var self = this;
 
@@ -305,7 +305,7 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
   checksum = checksum % 256;
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
-  self.write_register(sendCommand);
+  self.writeRegister(sendCommand);
 
 } 
 
@@ -315,17 +315,17 @@ RFID.prototype.wiresendcommand = function (cmd, cmdlen) {
           the I2C ACK signal)
 */
 /**************************************************************************/
-RFID.prototype.readackframe = function (next) {
+RFID.prototype.readAckFrame = function (next) {
   if (!next) {
-    console.log('Err no callback sent to readackframe');
+    console.log('Err no callback sent to readAckFrame');
     return false;
   }
-  this.wirereaddata(6, function(ackbuff){
+  this.wireReadData(6, function(ackbuff){
     next(ackbuff);
   });
 }
 
-RFID.prototype.wirereadstatus = function () {
+RFID.prototype.wireReadStatus = function () {
   var x = this.irq.read();
 
   if (DEBUG) {
@@ -346,9 +346,9 @@ RFID.prototype.wirereadstatus = function () {
     @param  n         Number of bytes to be read
 */
 /**************************************************************************/
-RFID.prototype.wirereaddata = function (numBytes, next) {
+RFID.prototype.wireReadData = function (numBytes, next) {
   // tessel.sleep(2); 
-  this.read_registers([], numBytes+2, function(err, response){
+  this.readRegisters([], numBytes+2, function(err, response){
     next(response);
   });
 
@@ -360,7 +360,7 @@ RFID.prototype.wirereaddata = function (numBytes, next) {
     @brief  I2C Helper Functions Below
 */
 /**************************************************************************/
-RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next) {
+RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 
   this.i2c.transfer(dataToWrite, bytesToRead, function (err, data) {
     next(err, data);
@@ -369,7 +369,7 @@ RFID.prototype.read_registers = function (dataToWrite, bytesToRead, next) {
 
 
 // Write a buffer of Bytes to the register.
-RFID.prototype.write_register  = function (dataToWrite, callback) {
+RFID.prototype.writeRegister  = function (dataToWrite, callback) {
   var reply = this.i2c.send(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite));
   callback && callback(reply);
   //  TODO
@@ -413,12 +413,12 @@ RFID.prototype.readCard = function(cardbaudrate, next) {
      // Wait for a card to enter the field
     var status = PN532_I2C_BUSY;
     var waitLoop = setInterval(function(){
-      if (self.wirereadstatus() === PN532_I2C_READY){
+      if (self.wireReadStatus() === PN532_I2C_READY){
         // A card has arrived! Stop waiting.
         clearInterval(waitLoop);
         // read data packet
         var dataLength = 20;
-        self.wirereaddata(dataLength, function(res){
+        self.wireReadData(dataLength, function(res){
           // parse data packet into component parts
 
           /* ISO14443A card response should be in the following format:
@@ -473,7 +473,7 @@ ACCESSING EEPROM
   - transfer
 */
 
-RFID.prototype.mifareclassic_IsFirstBlock = function (uiBlock) {
+RFID.prototype.miFareClassicIsFirstBlock = function (uiBlock) {
   // Test sector size
   if (uiBlock < 128) {
     return ((uiBlock) % 4 == 0);
@@ -502,7 +502,7 @@ RFID.prototype.mifareclassic_IsFirstBlock = function (uiBlock) {
 */
 /**************************************************************************/
 
-RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNumber, keyNumber, keyData) {
+RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumber, keyNumber, keyData) {
   var self = this;
   var len;
   var chosenKey; // A or B, depending on whether keyNumber is 1 or 0
@@ -526,13 +526,13 @@ RFID.prototype.mifareclassic_AuthenticateBlock = function (uid, uidLen, blockNum
 
   self.sendCommandCheckAck(pn532_packetbuffer, 10 + uidLen, function(ack) {
     if (!ack) {
-      console.log('Failed sendCommandCheckAck in mifareclassic_AuthenticateBlock');
+      console.log('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock');
       return 0;
     }
   });
 
   // Read response packet
-  self.wirereaddata(pn532_packetbuffer, 12);
+  self.wireReadData(pn532_packetbuffer, 12);
 
   // Check if the response is valid and we are authenticated???
   // for an auth success it should be bytes 5-7: 0xD5 0x41 0x00
@@ -557,7 +557,7 @@ RFID.prototype.accessMem = function() {
     // authenticating each sector and then dumping the blocks
     for (var currentblock = 0; currentblock < 64; currentblock++) {
       // Find out if it's a new block (if we need to re-authenticate)
-      if(self.mifareclassic_IsFirstBlock(currentblock)) {
+      if(self.miFareClassicIsFirstBlock(currentblock)) {
         authenticated = false;
       }
       if (authenticated == false) {
@@ -567,12 +567,12 @@ RFID.prototype.accessMem = function() {
           // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
           // or 0xA0 0xA1 0xA2 0xA3 0xA4 0xA5 for NDEF formatted cards using key a,
           // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
-          success = self.mifareclassic_AuthenticateBlock (Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
+          success = self.miFareClassicAuthenticateBlock (Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
         } else {
           // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
           // or 0xD3 0xF7 0xD3 0xF7 0xD3 0xF7 for NDEF formatted cards using key a,
           // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
-          success = self.mifareclassic_AuthenticateBlock (Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
+          success = self.miFareClassicAuthenticateBlock (Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
         }
         if (success) { // check to make sure auth worked
           authenticated = true;
@@ -594,9 +594,9 @@ RFID.prototype.accessMem = function() {
   //   console.log(Card);
   //   //write 6-byte auth key
   //   console.log('writing...')
-  //   self.write_register(authKey);
+  //   self.writeRegister(authKey);
   //   console.log('theoretically written')
-  //   self.wirereaddata(20, function(res) {
+  //   self.wireReadData(20, function(res) {
   //     console.log(res)
   //   });
   // });
