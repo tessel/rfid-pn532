@@ -43,7 +43,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
-  self.pollFrequency = 3000;
+  self.pollPeriod = 10000;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -98,11 +98,6 @@ util.inherits(RFID, events.EventEmitter);
 
 RFID.prototype.initialize = function (hardware, next) {
   this.getFirmwareVersion(function(err, firmware){
-    // if (firmware) {
-    //   next(err, firmware);
-    // } else {
-    //   return firmware;
-    // }
     next && next(err, firmware);
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
@@ -134,15 +129,6 @@ RFID.prototype.getFirmwareVersion = function (next) {
       console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
     if (!ack) {
-      // if (next) {
-      //   return next(err, 0);
-      // }
-      // // else {                 //  doubly get rid of this
-      // //   if (DEBUG) {
-      // //     console.log('Err no callback sent to getFirmwareVerson');
-      // //   }
-      // //   return 0;
-      // // }
       next(new Error('no ack'), null);
     }
     else {
@@ -186,10 +172,6 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
 */
 /**************************************************************************/
 RFID.prototype.SAMConfig = function (next) {
-  // if (!next) {
-  //   console.log('Err no callback sent to SAMConfig');
-  //   return false;
-  // }
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
@@ -200,7 +182,6 @@ RFID.prototype.SAMConfig = function (next) {
   
   self.sendCommandCheckAck(commandBuffer, 4, function(err, ack){
     if (!ack || err){
-      // return next(err, false);
       next(err, false);
     } 
     // read data packet
@@ -228,10 +209,6 @@ RFID.prototype.SAMConfig = function (next) {
 /**************************************************************************/
 
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
-  // if (!next) {
-  //   console.log('Err no callback sent to sendCommandCheckAck');
-  //   return false;
-  // }
   var self = this;
   // write the command
   self.wireSendCommand(cmd, cmdlen);
@@ -254,7 +231,6 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
       if (DEBUG) {
         console.log('Connection timed out.');
       }
-      // return false;
       next(new Error('timed out'), false);
     } else {
       if (DEBUG) {
@@ -270,7 +246,6 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
     console.log('Waiting for connection to module...');
   }
 
-  // return checkReadiness(timer);
   checkReadiness(timer);
 
 }
@@ -391,7 +366,7 @@ RFID.prototype.setListening = function () {
     } else {
       clearInterval(listeningLoop);
     }
-  }, self.pollFrequency);
+  }, self.pollPeriod);
 }
 
 RFID.prototype.readCard = function(cardBaudRate, next) {
@@ -413,13 +388,6 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
   
   self.sendCommandCheckAck(commandBuffer, 3, function(err, ack){
     if (!ack) {
-      /*CHANGED//
-      // if (next) {
-      //   return next(null, 0x00);
-      // // }
-      // console.log('Err no contingency');
-      // return 0;
-      //CHANGED*/
       next && next(err, ack);
     }
     else {
