@@ -54,7 +54,7 @@ function RFID (hardware, next) {
   self.irq.input();
   setTimeout(function () {
     self.nRST.high();
-    self.getFirmwareVersion(function (version) {
+    self.getFirmwareVersion(function (err, version) {
       if (!version) {
         throw "Cannot connect to PN532.";
       } else {
@@ -97,9 +97,9 @@ function RFID (hardware, next) {
 util.inherits(RFID, events.EventEmitter);
 
 RFID.prototype.initialize = function (hardware, next) {
-  this.getFirmwareVersion(function(firmware){
+  this.getFirmwareVersion(function(err, firmware){
     if (firmware) {
-      next(firmware);
+      next(err, firmware);
     } else {
       return firmware;
     }
@@ -128,13 +128,13 @@ RFID.prototype.getFirmwareVersion = function (next) {
   if (DEBUG) {
     console.log('Beginning sendCommandCheckAck in getFirmwareVersion...');
   }
-  self.sendCommandCheckAck(commandBuffer, 1, function(ack){
+  self.sendCommandCheckAck(commandBuffer, 1, function(err, ack){
     if (DEBUG) {
-      console.log('sendCommandCheckAck complete.');
+      console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
     if (!ack){
       if (next) {
-        return next(0);
+        return next(err, 0);
       } else {
         if (DEBUG) {
           console.log('Err no callback sent to getFirmwareVerson');
@@ -146,7 +146,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
     if (DEBUG) {
       console.log('Reading wire data in getFirmwareVersion');
     }
-    self.wireReadData(12, function (firmware){
+    self.wireReadData(12, function (err, firmware){
       if (DEBUG) {
         console.log("FIRMWARE: ", firmware);
         console.log("cleaned firmware: ", response);
@@ -171,12 +171,13 @@ RFID.prototype.getFirmwareVersion = function (next) {
 /**************************************************************************/
 RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
   var self = this;
-  self.readCard(cardbaudrate, function(Card){
-    if (next) {
-      next(Card.uid);
-    } else {
-      return Card.uid;
-    }
+  self.readCard(cardbaudrate, function(err, Card){
+    // if (next) {
+    //   next(err, Card.uid);
+    // } else {
+    //   return Card.uid;
+    // }
+    next && next(err, Card.uid);
   });
 }
 
@@ -198,13 +199,13 @@ RFID.prototype.SAMConfig = function (next) {
     0x01
   ];
   
-  self.sendCommandCheckAck(commandBuffer, 4, function(ack){
-    if (!ack){
-      return next(false);
+  self.sendCommandCheckAck(commandBuffer, 4, function(err, ack){
+    if (!ack || err){
+      return next(err, false);
     } 
     // read data packet
-    self.wireReadData(8, function(response){
-      next(response);
+    self.wireReadData(8, function(err, response){
+      next(err, response);
       led1.high();
     });
   });
@@ -247,10 +248,10 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
         console.log('Status: Ready!');
       }
       self.readAckFrame(function(err, ackbuff){
-        if (!ackbuff || err){
-          next(false);
+        if (!ackbuff){
+          next(new Error('ackbuff was false'), false);
         } else {
-          next(true);
+          next(null, true);
         }
       });
     } else if (timer > timeout) {
@@ -315,9 +316,9 @@ RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
           the I2C ACK signal)
 */
 /**************************************************************************/
-RFID.prototype.readAckFrame = function (err, next) {
-  if (!next || err) {
-    console.log('Err no callback sent to readAckFrame');
+RFID.prototype.readAckFrame = function (next) {
+  if (!next) {
+    console.log(next, err, 'Err no callback sent to readAckFrame');
     return false;
   }
   this.wireReadData(6, function(err, ackbuff){
@@ -385,7 +386,7 @@ RFID.prototype.setListening = function () {
   // Loop until nothing is listening
   self.listeningLoop = setInterval (function () {
     if (self.numListeners) {
-      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
+      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid){
         led2.high();
         self.emit('data', uid);
         led2.low();
@@ -397,17 +398,17 @@ RFID.prototype.setListening = function () {
 }
 
 RFID.prototype.readCard = function(cardbaudrate, next) {
-  var self = this
+  var self = this;
   var commandBuffer = [
     PN532_COMMAND_INLISTPASSIVETARGET,
     1,
     cardbaudrate
   ];
   
-  self.sendCommandCheckAck(commandBuffer, 3, function(ack){
+  self.sendCommandCheckAck(commandBuffer, 3, function(err, ack){
     if (!ack) {
       if (next) {
-        return next(0x0);
+        return next(null, 0x0);
       }
       console.log('Err no contingency');
       return 0;
@@ -420,7 +421,7 @@ RFID.prototype.readCard = function(cardbaudrate, next) {
         clearInterval(waitLoop);
         // read data packet
         var dataLength = 20;
-        self.wireReadData(dataLength, function(res){
+        self.wireReadData(dataLength, function(err, res){
           // parse data packet into component parts
 
           /* ISO14443A card response should be in the following format:
@@ -444,7 +445,7 @@ RFID.prototype.readCard = function(cardbaudrate, next) {
           Card.idLength = res[12];                   // NFCID Length
           Card.uid = res.slice(13,13+Card.idLength); // NFCID
 
-          next && next(Card);
+          next && next(err, Card);
         });
       }
     }, 10);
@@ -526,7 +527,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     pn532_packetbuffer[10+i] = uid[i];
   }
 
-  self.sendCommandCheckAck(pn532_packetbuffer, 10 + uidLen, function(ack) {
+  self.sendCommandCheckAck(pn532_packetbuffer, 10 + uidLen, function(err, ack) {
     if (!ack) {
       console.log('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock');
       return 0;
@@ -534,7 +535,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
   });
 
   // Read response packet
-  self.wireReadData(pn532_packetbuffer, 12);
+  self.wireReadData(pn532_packetbuffer, 12);//I don't think this is right ~e
 
   // Check if the response is valid and we are authenticated???
   // for an auth success it should be bytes 5-7: 0xD5 0x41 0x00
