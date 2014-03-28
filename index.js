@@ -169,14 +169,9 @@ RFID.prototype.getFirmwareVersion = function (next) {
     @returns 1 if everything executed properly, 0 for an error
 */
 /**************************************************************************/
-RFID.prototype.readPassiveTargetID = function (cardbaudrate, next) {
+RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   var self = this;
-  self.readCard(cardbaudrate, function(err, Card){
-    // if (next) {
-    //   next(err, Card.uid);
-    // } else {
-    //   return Card.uid;
-    // }
+  self.readCard(cardBaudRate, function(err, Card){
     next && next(err, Card.uid);
   });
 }
@@ -265,7 +260,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
       }
       setTimeout(function(){
         checkReadiness(timer + 1);
-      }, 10);
+      }, 25);
     }
   }
 }
@@ -397,12 +392,18 @@ RFID.prototype.setListening = function () {
   }, self.pollFrequency);
 }
 
-RFID.prototype.readCard = function(cardbaudrate, next) {
+RFID.prototype.readCard = function(cardBaudRate, next) {
+  /*
+  Read the contents of the card, call the callback with the resulting Buffer
+
+  Args
+    cardBaudRate
+  */
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_INLISTPASSIVETARGET,
     1,
-    cardbaudrate
+    cardBaudRate
   ];
   
   self.sendCommandCheckAck(commandBuffer, 3, function(err, ack){
