@@ -441,6 +441,13 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
           Card.idLength = res[12];                   // NFCID Length
           Card.uid = res.slice(13,13+Card.idLength); // NFCID
 
+          if (DEBUG) {
+            console.log('Read a card, got Buffer:\n')
+            for (var i = 0; i < res.length; i++) {
+              console.log('\t', i, '\t', res[i], '\t', res[i].toString(16));
+            }
+          }
+
           next && next(err, Card);
         });
       }
