@@ -390,6 +390,9 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
 
   Args
     cardBaudRate
+      Baud rate used for communication with the card
+    next
+      Callback function; args: err, data
   */
   var self = this;
   var commandBuffer = [
