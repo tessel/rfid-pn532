@@ -43,7 +43,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
-  self.pollFrequency = 100;
+  self.pollFrequency = 5000;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -319,9 +319,9 @@ RFID.prototype.readAckFrame = function (next) {
 RFID.prototype.wireReadStatus = function () {
   var x = this.irq.read();
 
-  if (DEBUG) {
-    console.log("IRQ", x);
-  }
+  // if (DEBUG) {
+  //   console.log("IRQ", x);
+  // }
 
   if (x == 1)
     return PN532_I2C_BUSY;

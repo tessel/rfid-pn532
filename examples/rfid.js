@@ -10,6 +10,9 @@ rfid.on('connected', function (version) {
   console.log("Ready to read RFID card");
   // rfid.accessMem();
   rfid.on('data', function (uid) {
-    console.log('RFID read UID:\t', uid);
+    console.log('\nRFID read UID:');
+    for (var i = 0; i < uid.length; i++) {
+      console.log('\t', i, '\t', uid[i], '\t', uid[i].toString(16));
+    }
   });
 });
