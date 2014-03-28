@@ -302,7 +302,6 @@ RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
   self.writeRegister(sendCommand);
-
 } 
 
 /**************************************************************************/
@@ -312,10 +311,6 @@ RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
 */
 /**************************************************************************/
 RFID.prototype.readAckFrame = function (next) {
-  if (!next) {
-    console.log(next, err, 'Err no callback sent to readAckFrame');
-    return false;
-  }
   this.wireReadData(6, function(err, ackbuff){
     next(err, ackbuff);
   });
@@ -343,11 +338,9 @@ RFID.prototype.wireReadStatus = function () {
 */
 /**************************************************************************/
 RFID.prototype.wireReadData = function (numBytes, next) {
-  // tessel.sleep(2); 
   this.readRegisters([], numBytes+2, function(err, response){
     next && next(err, response);
   });
-
 }
 
 
@@ -364,12 +357,11 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 }
 
 
-// Write a buffer of Bytes to the register.
+// Write a Buffer of bytes to the register.
 RFID.prototype.writeRegister  = function (dataToWrite, next) {
   this.i2c.send(Buffer.isBuffer(dataToWrite) ? dataToWrite : new Buffer(dataToWrite), function(err, data) {
     next && next(err, data);
   });
-  // next && next(reply); // the old way
   //  TODO
   //  Modify everything to give this function Buffers instead of Arrays
 }
