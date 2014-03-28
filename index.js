@@ -43,7 +43,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
-  self.pollFrequency = 5000;
+  self.pollFrequency = 3000;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -98,11 +98,12 @@ util.inherits(RFID, events.EventEmitter);
 
 RFID.prototype.initialize = function (hardware, next) {
   this.getFirmwareVersion(function(err, firmware){
-    if (firmware) {
-      next(err, firmware);
-    } else {
-      return firmware;
-    }
+    // if (firmware) {
+    //   next(err, firmware);
+    // } else {
+    //   return firmware;
+    // }
+    next && next(err, firmware);
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
   // Once Reset actually works...
@@ -132,27 +133,30 @@ RFID.prototype.getFirmwareVersion = function (next) {
     if (DEBUG) {
       console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
-    if (!ack){
-      if (next) {
-        return next(err, 0);
-      } else {
-        if (DEBUG) {
-          console.log('Err no callback sent to getFirmwareVerson');
-        }
-        return 0;
-      }
+    if (!ack) {
+      // if (next) {
+      //   return next(err, 0);
+      // }
+      // // else {                 //  doubly get rid of this
+      // //   if (DEBUG) {
+      // //     console.log('Err no callback sent to getFirmwareVerson');
+      // //   }
+      // //   return 0;
+      // // }
+      next(new Error('no ack'), null);
     }
-
-    if (DEBUG) {
-      console.log('Reading wire data in getFirmwareVersion');
-    }
-    self.wireReadData(12, function (err, firmware){
+    else {
       if (DEBUG) {
-        console.log("FIRMWARE: ", firmware);
-        console.log("cleaned firmware: ", response);
+        console.log('Reading wire data in getFirmwareVersion');
       }
-      self.SAMConfig(next);
-    });
+      self.wireReadData(12, function (err, firmware){
+        if (DEBUG) {
+          console.log("FIRMWARE: ", firmware);
+          console.log("cleaned firmware: ", response);
+        }
+        self.SAMConfig(next);
+      });
+    }
   });
 }
 
@@ -182,10 +186,10 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
 */
 /**************************************************************************/
 RFID.prototype.SAMConfig = function (next) {
-  if (!next) {
-    console.log('Err no callback sent to SAMConfig');
-    return false;
-  }
+  // if (!next) {
+  //   console.log('Err no callback sent to SAMConfig');
+  //   return false;
+  // }
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
@@ -196,13 +200,16 @@ RFID.prototype.SAMConfig = function (next) {
   
   self.sendCommandCheckAck(commandBuffer, 4, function(err, ack){
     if (!ack || err){
-      return next(err, false);
+      // return next(err, false);
+      next(err, false);
     } 
     // read data packet
-    self.wireReadData(8, function(err, response){
-      next(err, response);
-      led1.high();
-    });
+    else {
+      self.wireReadData(8, function(err, response){
+        next(err, response);
+        led1.high();
+      });
+    }
   });
 }
 
@@ -221,29 +228,23 @@ RFID.prototype.SAMConfig = function (next) {
 /**************************************************************************/
 
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
-  if (!next) {
-    console.log('Err no callback sent to sendCommandCheckAck');
-    return false;
-  }
+  // if (!next) {
+  //   console.log('Err no callback sent to sendCommandCheckAck');
+  //   return false;
+  // }
   var self = this;
   // write the command
   self.wireSendCommand(cmd, cmdlen);
   var timer = 0;
-  var timeout = 100; // 1 second, intervals of 10 ms
-
-  if (DEBUG) {
-    console.log('Waiting for connection to module...');
-  }
-  return checkReadiness(timer);
-
-  function checkReadiness (timer) {
+  var timeout = 20; // 1 second, intervals of 50 ms
+  var checkReadiness = function (timer) {
     var stat = self.wireReadStatus();
     if (stat == PN532_I2C_READY) {    // PN532_I2C_READY = 1
       if (DEBUG) {
         console.log('Status: Ready!');
       }
-      self.readAckFrame(function(err, ackbuff){
-        if (!ackbuff){
+      self.readAckFrame(function(err, ackbuff) {
+        if (!ackbuff) {
           next(new Error('ackbuff was false'), false);
         } else {
           next(null, true);
@@ -253,7 +254,8 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
       if (DEBUG) {
         console.log('Connection timed out.');
       }
-      return false;
+      // return false;
+      next(new Error('timed out'), false);
     } else {
       if (DEBUG) {
         console.log('Something went wrong, so let\'s try again.\n\tstat:\t', stat, '\tready:\t', PN532_I2C_READY);
@@ -263,6 +265,14 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
       }, 25);
     }
   }
+
+  if (DEBUG) {
+    console.log('Waiting for connection to module...');
+  }
+
+  // return checkReadiness(timer);
+  checkReadiness(timer);
+
 }
 
 /**************************************************************************/
@@ -317,7 +327,7 @@ RFID.prototype.readAckFrame = function (next) {
 }
 
 RFID.prototype.wireReadStatus = function () {
-  var x = this.irq.read();
+  var x = this.irq.readSync();
 
   // if (DEBUG) {
   //   console.log("IRQ", x);
@@ -403,55 +413,62 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
   
   self.sendCommandCheckAck(commandBuffer, 3, function(err, ack){
     if (!ack) {
-      if (next) {
-        return next(null, 0x0);
-      }
-      console.log('Err no contingency');
-      return 0;
+      /*CHANGED//
+      // if (next) {
+      //   return next(null, 0x00);
+      // // }
+      // console.log('Err no contingency');
+      // return 0;
+      //CHANGED*/
+      next && next(err, ack);
     }
-     // Wait for a card to enter the field
-    var status = PN532_I2C_BUSY;
-    var waitLoop = setInterval(function(){
-      if (self.wireReadStatus() === PN532_I2C_READY){
-        // A card has arrived! Stop waiting.
-        clearInterval(waitLoop);
-        // read data packet
-        var dataLength = 20;
-        self.wireReadData(dataLength, function(err, res){
-          // parse data packet into component parts
+    else {
+      // Wait for a card to enter the field
+      var status = PN532_I2C_BUSY;
+      var parseCard = function(err, res){
+        // parse data packet into component parts
 
-          /* ISO14443A card response should be in the following format:
-          
-            byte            Description
-            -------------   ------------------------------------------
-            b0..6           Frame header and preamble
-            b7              Tags Found
-            b8              Tag Number (only one used in this example)
-            b9..10          SENS_RES
-            b11             SEL_RES
-            b12             NFCID Length
-            b13..NFCIDLen   NFCID                                      */
+        /* ISO14443A card response should be in the following format:
+        
+          byte            Description
+          -------------   ------------------------------------------
+          b0..6           Frame header and preamble
+          b7              Tags Found
+          b8              Tag Number (only one used in this example)
+          b9..10          SENS_RES
+          b11             SEL_RES
+          b12             NFCID Length
+          b13..NFCIDLen   NFCID                                      */
 
-          var Card = new Object();
-          Card.header = res.slice(0,7);              // Frame header and preamble
-          Card.numTags = res[7];                     // Tags found
-          Card.tagNum = res[8];                      // Tag number
-          Card.SENS_RES = res.slice(9,11);           // SENS_RES
-          Card.SEL_RES = res[11];                    // SEL_RES
-          Card.idLength = res[12];                   // NFCID Length
-          Card.uid = res.slice(13,13+Card.idLength); // NFCID
+        var Card = new Object();
+        Card.header = res.slice(0,7);              // Frame header and preamble
+        Card.numTags = res[7];                     // Tags found
+        Card.tagNum = res[8];                      // Tag number
+        Card.SENS_RES = res.slice(9,11);           // SENS_RES
+        Card.SEL_RES = res[11];                    // SEL_RES
+        Card.idLength = res[12];                   // NFCID Length
+        Card.uid = res.slice(13,13+Card.idLength); // NFCID
 
-          if (DEBUG) {
-            console.log('Read a card, got Buffer:\n')
-            for (var i = 0; i < res.length; i++) {
-              console.log('\t', i, '\t', res[i], '\t', res[i].toString(16));
-            }
+        if (DEBUG) {
+          console.log('Read a card, got Buffer:\n')
+          for (var i = 0; i < res.length; i++) {
+            console.log('\t', i, '\t', res[i], '\t', res[i].toString(16));
           }
-
-          next && next(err, Card);
-        });
+        }
+        next && next(err, Card);
       }
-    }, 10);
+      var waitLoop = setInterval(function(){
+        if (self.wireReadStatus() === PN532_I2C_READY){
+          // A card has arrived! Stop waiting.
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 20;
+          self.wireReadData(dataLength, function(err, res) {
+            parseCard(err, res);
+          });
+        }
+      }, 10);
+    }
   });
 }
 
