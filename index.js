@@ -264,7 +264,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
     @param  cmd       Pointer to the command buffer
 */
 /**************************************************************************/
-RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
+RFID.prototype.wireSendCommand = function (cmd, cmdlen, next) {
   var checksum;
   var self = this;
 
@@ -292,7 +292,7 @@ RFID.prototype.wireSendCommand = function (cmd, cmdlen) {
   checksum = checksum % 256;
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
-  self.writeRegister(sendCommand);
+  self.writeRegister(sendCommand, next);
 } 
 
 /**************************************************************************/
@@ -342,20 +342,14 @@ RFID.prototype.wireReadData = function (numBytes, next) {
 */
 /**************************************************************************/
 RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
-  var bufferToWrite = new Buffer(dataToWrite.length)
+  var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
-  console.log('writing\n');
   for (var i = 0; i < dataToWrite.length; i++) {
     if (dataToWrite[i]) {
       bufferToWrite[i] = dataToWrite[i];
     }
-    console.log('\t', bufferToWrite[i], '\t', bufferToWrite[i].toString(16));
   }
   this.i2c.transfer(bufferToWrite, bytesToRead, function (err, data) {
-    console.log('reply\n');
-    for (var i = 0; i < data.length; i++) {
-      console.log('\t', data[i], '\t', data[i].toString(16));
-    }
     next && next(err, data);
   });
 }
@@ -365,15 +359,18 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 RFID.prototype.writeRegister  = function (dataToWrite, next) {
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
-  console.log('writing\n');
+  // console.log('\t---------------write-------------------');
+  // console.log('\t---> writing\n');
   for (var i = 0; i < dataToWrite.length; i++) {
     if (dataToWrite[i]) {
       bufferToWrite[i] = dataToWrite[i];
     }
-    console.log('\t', bufferToWrite[i], '\t', bufferToWrite[i].toString(16));
+    // console.log('  --\t', i, '\t', bufferToWrite[i], '\t', bufferToWrite[i].toString(16));
   }
+
   this.i2c.send(bufferToWrite, function(err, data) {
-    console.log('got back\t', data);
+    // console.log('\t---> got back\t', err, data);
+    // console.log('\t---------------end write-------------------');
     next && next(err, data);
   });
   //  TODO
@@ -524,7 +521,7 @@ RFID.prototype.miFareClassicIsFirstBlock = function (uiBlock) {
 */
 /**************************************************************************/
 
-RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumber, keyNumber, keyData) {
+RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumber, keyNumber, keyData, next) {
   var self = this;
   var len;
   var chosenKey; // A or B, depending on whether keyNumber is 1 or 0
@@ -541,31 +538,54 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     PN532_COMMAND_INDATAEXCHANGE,   // Data exchange header
     1,                              // Max card numbers
     chosenKey,                      // See if statement above
-    blockNumber];                   // Block number (1K = 0..63, 4k = 0..255)
+    blockNumber,                    // Block number (1K = 0..63, 4k = 0..255)
+    // 0xFF, 
+    // 0xFF, 
+    // 0xFF,                           //  keys are apparently 0xFF by default
+    // 0xFF, 
+    // 0xFF, 
+    // 0xFF];
+    0xA0,
+    0xA1,
+    0xA2,
+    0xA3,
+    0xA4,
+    0xA5];
+
 
   for (var i = 0; i < uidLen; i++) {
-    pn532_packetbuffer[10+i] = uid[i];
+    pn532_packetbuffer[10 + i] = uid[i];
   }
-
+  console.log('sending over buffer:\n', pn532_packetbuffer.toString(16));
   self.sendCommandCheckAck(pn532_packetbuffer, 10 + uidLen, function(err, ack) {
-    if (!ack) {
+    if (!ack) {//then we failed
       console.log('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock');
-      return 0;
+      next(new Error('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock'), false);
     }
   });
 
   // Read response packet
-  self.wireReadData(pn532_packetbuffer, 12);//I don't think this is right ~e
+  setTimeout(self.wireReadData(63, function(err, reply) {
+    console.log('Tried to read block, got back e,d:\t', err);
+    for (var i = 0; i < reply.length; i++) {
+      console.log('\t', i, '\t', reply[i], '\t', reply[i].toString(16));
+    };
+    var e = new Error('read after auth not to spec');
+    var success = reply[6] == 0x41 && reply[7] == 0x00;
+    console.log('Did we authenticate?', reply[6].toString(16), reply[7].toString(16), reply[6] == 0x41, reply[7] == 0x00);
+    next(success ? null : e, success);
+  }), 50);
 
   // Check if the response is valid and we are authenticated???
   // for an auth success it should be bytes 5-7: 0xD5 0x41 0x00
   // Mifare auth error is technically byte 7: 0x14 but anything other and 0x00 is not good
-  if (pn532_packetbuffer[7] != 0x00)
-  {
-    console.log("Authentification failed: ");
-    return 0;
-  }  
-  return 1;
+  // if (pn532_packetbuffer[7] != 0x00)
+  // {
+  //   console.log("Authentification failed. Buffer:");
+
+  //   return 0;
+  // }  
+  // return 1;
 }
 
 
@@ -580,32 +600,40 @@ RFID.prototype.accessMem = function() {
     // Try to go through all 16 sectors (each has 4 blocks)
     // authenticating each sector and then dumping the blocks
     console.log('read card, got\n', err, '\n', Card);
-    for (var currentblock = 0; currentblock < /*6*/4; currentblock++) {
+    for (var currentblock = 0; currentblock < /*64*/2; currentblock++) {
       // Find out if it's a new block (if we need to re-authenticate)
       if(self.miFareClassicIsFirstBlock(currentblock)) {
         authenticated = false;
       }
+      console.log('------------------------ Sector', currentblock, '------------------------');
       if (authenticated == false) {
         // re-authenticate
-        console.log('------------------------ Sector', currentblock, '------------------------');
-        if (currentblock == 0) {
-          // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
-          // or 0xA0 0xA1 0xA2 0xA3 0xA4 0xA5 for NDEF formatted cards using key a,
-          // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
-          success = self.miFareClassicAuthenticateBlock(Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
-        }
-        else {
-          // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
-          // or 0xD3 0xF7 0xD3 0xF7 0xD3 0xF7 for NDEF formatted cards using key a,
-          // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
-          success = self.miFareClassicAuthenticateBlock (Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
-        }
-        if (success) { // check to make sure auth worked
-          authenticated = true;
-        }
-        else {
-          console.log('Authentication error');
-        }
+        self.miFareClassicAuthenticateBlock(Card.uid, Card.uid.length, currentblock, 0, null, function(err, data) {
+          console.log('success auth\'ing? [e,d]', err, data);
+        });
+
+
+
+
+
+        // if (currentblock == 0) {
+        //   // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
+        //   // or 0xA0 0xA1 0xA2 0xA3 0xA4 0xA5 for NDEF formatted cards using key a,
+        //   // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
+        //   success = self.miFareClassicAuthenticateBlock(Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
+        // }
+        // else {
+        //   // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
+        //   // or 0xD3 0xF7 0xD3 0xF7 0xD3 0xF7 for NDEF formatted cards using key a,
+        //   // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
+        //   success = self.miFareClassicAuthenticateBlock (Card.uid, Card.uid.length, currentblock, 1, keyuniversal);
+        // }
+        // if (success) { // check to make sure auth worked
+        //   authenticated = true;
+        // }
+        // else {
+        //   console.log('Authentication error');
+        // }
       }
     }
   });
@@ -633,6 +661,17 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
   /*
   read the contents of the memory block
   */
+  var pn532_packetbuffer = new Buffer(4);
+  pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
+  pn532_packetbuffer[1] = 0x01;  // either card 1 or 2
+  pn532_packetbuffer[2] = PN532_MIFARE_READ;
+  pn532_packetbuffer[3] = addr; //This address can be 0-63 for MIFARE 1K card
+
+  this.sendCommandCheckAck(pn532_packetbuffer, 4, function(err, ack) {
+    if (!err && ack) {
+
+    }
+  })
 }
 
 exports.RFID = RFID;
