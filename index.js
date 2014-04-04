@@ -588,7 +588,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     blockNumber];                   // Block number (1K = 0..63, 4k = 0..255)
 
   console.log('adding given key:', keyData)
-  for (var i = 0; i < keyData; i++) {
+  for (var i = 0; i < keyData.length; i++) {
     pn532_packetbuffer.push(keyData[i]);
   }  
 
@@ -597,7 +597,11 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     pn532_packetbuffer.push(uid[i]);
   }
 
-  console.log('full buffer:\n', pn532_packetbuffer);
+  var s = '[';
+  pn532_packetbuffer.forEach(function(d) {s+=d.toString(16)+', '});
+  s = s.slice(0, s.length-2) + ']';
+  console.log('full buffer:\n' + s);
+
   self.sendCommandCheckAck(pn532_packetbuffer, pn532_packetbuffer.length, function(err, ack) {
     if (!ack) {//then we failed
       console.log('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock');
