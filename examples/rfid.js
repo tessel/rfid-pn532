@@ -29,6 +29,11 @@ rfid.on('connected', function (version) {
   //   commandBuffer.push()
 });
 
+rfid.irq.watch('fall', function() {
+  console.log('\t\t\t\t---> IRQ Low');
+  rfid.emit('irq', null, 0);
+});
+rfid.irq.watch('rise', function() {console.log('\t\t\t\t---> IRQ High')});
 
 
   // rfid.on('data', function (uid) {
