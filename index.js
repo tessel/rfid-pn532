@@ -40,6 +40,10 @@ function RFID (hardware, next) {
 
   self.hardware = hardware;
   self.irq = hardware.gpio(3);
+  self.irq.watch('fall', function() {
+  // console.log('\t\t\t\t---> IRQ Low');
+    self.emit('irq', null, 0);
+  });
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
@@ -217,8 +221,8 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   self.wireSendCommand(cmd, cmdlen);
   var timer = 0;
   var timeout = 200; // 1 second, intervals of 5 ms
-  var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
 
+  var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
   var checkAck = function (packet) {
     var success = true;
     for (var i = 0; i < successfulAck.length; i++) {
@@ -227,42 +231,46 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
     return success;
   } 
 
-  var checkReadiness = function (timer) {
-    var stat = self.wireReadStatus();
-    if (stat == PN532_I2C_READY) {    // PN532_I2C_READY = 1
-      if (DEBUG) {
-        console.log('Status: Ready!');
-      }
-      self.readAckFrame(function(err, ackbuff) {
-        if (!ackbuff || !checkAck(ackbuff)) {
-          next(new Error('ackbuff was invalid'), false);
-        }
-        else {
-          next(null, ackbuff);
-        }
-      });
-    } 
-    else if (timer > timeout) {
-      if (DEBUG) {
-        console.log('Connection timed out.');
-      }
-      next(new Error('timed out'), false);
-    }
-    else {
-      if (DEBUG) {
-        console.log('Waiting for IRQ...');
-      }
-      setTimeout(function() {
-        checkReadiness(timer + 1);
-      }, 5);
-    }
-  }
+  self.once('irq', function(err, data) {
 
-  if (DEBUG) {
-    console.log('Waiting for connection to module...');
-  }
+  });
 
-  checkReadiness(timer);
+  // var checkReadiness = function (timer) {
+  //   var stat = self.wireReadStatus();
+  //   if (stat == PN532_I2C_READY) {    // PN532_I2C_READY = 1
+  //     if (DEBUG) {
+  //       console.log('Status: Ready!');
+  //     }
+  //     self.readAckFrame(function(err, ackbuff) {
+  //       if (!ackbuff || !checkAck(ackbuff)) {
+  //         next(new Error('ackbuff was invalid'), false);
+  //       }
+  //       else {
+  //         next(null, ackbuff);
+  //       }
+  //     });
+  //   } 
+  //   else if (timer > timeout) {
+  //     if (DEBUG) {
+  //       console.log('Connection timed out.');
+  //     }
+  //     next(new Error('timed out'), false);
+  //   }
+  //   else {
+  //     if (DEBUG) {
+  //       console.log('Waiting for IRQ...');
+  //     }
+  //     setTimeout(function() {
+  //       checkReadiness(timer + 1);
+  //     }, 5);
+  //   }
+  // }
+
+  // if (DEBUG) {
+  //   console.log('Waiting for connection to module...');
+  // }
+
+  // checkReadiness(timer);
 
 }
 
