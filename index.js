@@ -232,7 +232,14 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   } 
 
   self.once('irq', function(err, data) {
-
+    self.readAckFrame(function(err, ackbuff) {
+      if (!ackbuff || !checkAck(ackbuff)) {
+        next(new Error('ackbuff was invalid'), false);
+      }
+      else {
+        next(null, ackbuff);
+      }
+    });
   });
 
   // var checkReadiness = function (timer) {
