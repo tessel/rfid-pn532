@@ -597,6 +597,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     pn532_packetbuffer.push(uid[i]);
   }
 
+  console.log('full buffer:\n', pn532_packetbuffer);
   self.sendCommandCheckAck(pn532_packetbuffer, pn532_packetbuffer.length, function(err, ack) {
     if (!ack) {//then we failed
       console.log('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock');
