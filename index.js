@@ -129,7 +129,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
   if (DEBUG) {
     console.log('Beginning sendCommandCheckAck in getFirmwareVersion...');
   }
-  self.sendCommandCheckAck(commandBuffer, 1, function(err, ack) {
+  self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (DEBUG) {
       console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
@@ -185,7 +185,7 @@ RFID.prototype.SAMConfig = function (next) {
     0x01
   ];
   
-  self.sendCommandCheckAck(commandBuffer, 4, function(err, ack) {
+  self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (!ack || err) {
       console.log('failed to SAMConfig');
       next(err, false);
@@ -215,9 +215,17 @@ RFID.prototype.SAMConfig = function (next) {
 */
 /**************************************************************************/
 
-RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
+RFID.prototype.sendCommandCheckAck = function (cmd, next) {
+  /*
+  send a command, check that the module acknowledges
+
+  cmd
+    command to send
+  next
+    callback; gets [err, reply] as args
+  */
   var self = this;
-  self.wireSendCommand(cmd, cmdlen, function(err, data) {
+  self.wireSendCommand(cmd, function(err, data) {
     console.log('kickback from readreg:\n', err, '\n', data);
   });
 
@@ -411,7 +419,7 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
     cardBaudRate
   ];
   
-  self.sendCommandCheckAck(commandBuffer, 3, function(err, ack) {
+  self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (err || !ack) {
       next && next(err, ack);
     }
@@ -585,7 +593,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     console.log('full buffer:\n' + s);
   }
 
-  self.sendCommandCheckAck(pn532_packetbuffer, pn532_packetbuffer.length, function(err, ack) {
+  self.sendCommandCheckAck(pn532_packetbuffer, function(err, ack) {
     if (!ack) {//then we failed
       console.log('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock');
       next(new Error('Failed sendCommandCheckAck in miFareClassicAuthenticateBlock'), false);
@@ -724,7 +732,7 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
   pn532_packetbuffer[3] = addr; //This address can be 0-63 for MIFARE 1K card
 
   if (DEBUG) {console.log('trying to read block', addr);}
-  this.sendCommandCheckAck(pn532_packetbuffer, 4, function(err, ack) {
+  this.sendCommandCheckAck(pn532_packetbuffer, function(err, ack) {
     if (!err && ack) {
       if (DEBUG) {console.log('got data:', ack);}
       next(err, ack);
