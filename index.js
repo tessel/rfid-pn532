@@ -217,6 +217,16 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   self.wireSendCommand(cmd, cmdlen);
   var timer = 0;
   var timeout = 200; // 1 second, intervals of 5 ms
+  var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
+
+  var checkAck = function (packet) {
+    var success = true;
+    for (var i = 0; i < successfulAck.length; i++) {
+      success = (success && (successfulAck[i] == packet[i])); 
+    }
+    return success;
+  } 
+
   var checkReadiness = function (timer) {
     var stat = self.wireReadStatus();
     if (stat == PN532_I2C_READY) {    // PN532_I2C_READY = 1
@@ -224,11 +234,11 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
         console.log('Status: Ready!');
       }
       self.readAckFrame(function(err, ackbuff) {
-        if (!ackbuff) {
-          next(new Error('ackbuff was false'), false);
+        if (!ackbuff || !checkAck(ackbuff)) {
+          next(new Error('ackbuff was invalid'), false);
         }
         else {
-          next(null, true);
+          next(null, ackbuff);
         }
       });
     } 
@@ -611,9 +621,9 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     }
     else {
       // we ack'd properly
-      self.wireReadData(20, function(err, reply) {
+      self.wireReadData(30, function(err, reply) {
         reply = reply.slice(1);
-        console.log('Tried to read block, got back e,d:\t', err);
+        console.log('Got block auth reply e,d:\t', err);
         for (var i = 0; i < reply.length; i++) {
           console.log('\t', i, '\t', reply[i], '\t', reply[i].toString(16));
         };
@@ -662,9 +672,11 @@ RFID.prototype.accessMem = function() {
     // Try to go through all 16 sectors (each has 4 blocks)
     // authenticating each sector and then dumping the blocks
     console.log('read card, got\n', err, '\n', Card);
-    for (var currentblock = 0; currentblock < /*64*/1; currentblock++) {
+    // for (var currentblock = 0; currentblock < /*64*/1; currentblock++) {
+      var currentblock = 0;
       // Find out if it's a new block (if we need to re-authenticate)
       if(self.miFareClassicIsFirstBlock(currentblock)) {
+        console.log('first block, resetting authentication');
         authenticated = false;
       }
       console.log('------------------------ Sector', currentblock, '------------------------');
@@ -675,11 +687,17 @@ RFID.prototype.accessMem = function() {
             console.log('success auth\'ing? [e,d]', err, data);
             if (!err || data) {
               authenticated = true;
-            }
+            }currentblock
             if (authenticated) {
-              //  now that we've auth'd, try to read the block
+              // now that we've auth'd, try to read the block
               self.readMemoryBlock(Card.uid, currentblock, function(err, data) {
-                console.log('tried to read block #'+currentblock, ', got back\n', err, '\n', data);
+                console.log('tried to read block #', currentblock, ', got back\n', err, '\n', data);
+                // wait for IRQ
+                self.once('irq', function(err, data) {
+                  self.wireReadData(20, function(err, reply) {
+                    console.log('err/contents:\n', err, '\n', reply);
+                  })
+                });
               });
             }
           });
@@ -702,7 +720,7 @@ RFID.prototype.accessMem = function() {
       //     console.log('tried to read block #'+currentblock, ', got back\n', err, '\n', data);
       //   });
       // }
-    }
+    // } // for loop's brace
   });
 }
 
