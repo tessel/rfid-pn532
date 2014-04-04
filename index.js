@@ -217,10 +217,9 @@ RFID.prototype.SAMConfig = function (next) {
 
 RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
   var self = this;
-  // write the command
-  self.wireSendCommand(cmd, cmdlen);
-  var timer = 0;
-  var timeout = 200; // 1 second, intervals of 5 ms
+  self.wireSendCommand(cmd, cmdlen, function(err, data) {
+    console.log('kickback from readreg:\n', err, '\n', data);
+  });
 
   var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
   var checkAck = function (packet) {
