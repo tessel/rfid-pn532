@@ -253,7 +253,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
     @param  cmd       Pointer to the command buffer
 */
 /**************************************************************************/
-RFID.prototype.wireSendCommand = function (cmd, cmdlen, next) {
+RFID.prototype.wireSendCommand = function (cmd, next) {
   var checksum;
   var self = this;
 
@@ -267,12 +267,12 @@ RFID.prototype.wireSendCommand = function (cmd, cmdlen, next) {
     PN532_PREAMBLE, 
     PN532_STARTCODE2, 
     cmdlen, 
-    (255 - cmdlen) + 1, 
+    (255 - cmd.length) + 1, 
     PN532_HOSTTOPN532];
 
   checksum += PN532_HOSTTOPN532;
 
-  for (var i=0; i<cmdlen-1; i++) {
+  for (var i=0; i<cmd.length-1; i++) {
     sendCommand.push(cmd[i]);
     if(cmd[i]) {
       checksum += cmd[i];
