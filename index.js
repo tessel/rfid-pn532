@@ -221,6 +221,10 @@ RFID.prototype.sendCommandCheckAck = function (cmd, cmdlen, next) {
 
   cmd
     command to send
+  cmdlen
+    length of the command (bytes)
+  next
+    callback. args are err, reply
   */
   var self = this;
   self.wireSendCommand(cmd, cmdlen, function(err, data) {
