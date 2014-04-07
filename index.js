@@ -47,7 +47,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
-  self.pollPeriod = 3000;
+  self.pollPeriod = 500;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -167,7 +167,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
 RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   var self = this;
   self.readCard(cardBaudRate, function(err, Card) {
-    next && next(err, Card.uid);
+    next && next(err, Card.uid || null);
   });
 }
 
@@ -228,21 +228,26 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
   */
   var self = this;
   self.wireSendCommand(cmd, function(err, data) {
-    console.log('kickback from readreg:\n', err, '\n', data);
+    if (DEBUG) {console.log('kickback from readreg:\n', err, '\n', data);}
   });
 
-  var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
-  var checkAck = function (packet) {
-    var success = true;
-    for (var i = 0; i < successfulAck.length; i++) {
-      success = (success && (successfulAck[i] == packet[i])); 
-    }
-    return success;
-  } 
+  // var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
+  // var checkAck = function (packet) {
+  //   var success = true;
+  //   for (var i = 0; i < successfulAck.length; i++) {
+  //     success = (success && (successfulAck[i] == packet[i])); 
+  //   }
+  //   return success;
+  // } 
 
   self.once('irq', function(err, data) {
     self.readAckFrame(function(err, ackbuff) {
-      next((err || !ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+      if (err) {
+        next && next(err, null);
+      }
+      else {
+        next && next((!ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+      }
     });
   });
 }
@@ -405,7 +410,7 @@ RFID.prototype.setListening = function () {
   self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
       self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
-          if (!eer && uid) {
+          if (!err && uid) {
             led2.high();
             self.emit('data', uid);
             led2.low();
@@ -483,7 +488,12 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
           // read data packet
           var dataLength = 20;
           self.wireReadData(dataLength, function(err, res) {
-            parseCard(err, res);
+            if (!err && checkPacket(res)) {
+              parseCard(err, res);
+            }
+            else {
+              next && next(err || new Error('invalid packet'), res);
+            }
           });
         }
       }, 50);
