@@ -387,15 +387,17 @@ RFID.prototype.writeRegister  = function (dataToWrite, next) {
 
 
 RFID.prototype.setListening = function () {
-  var self = this;;
+  var self = this;
   self.listening = true;
   // Loop until nothing is listening
-  self.listeningLoop = setInterval (function () {
+  self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
       self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
-        led2.high();
-        self.emit('data', uid);
-        led2.low();
+          if (!eer && uid) {
+            led2.high();
+            self.emit('data', uid);
+            led2.low();
+          }
       });
     }
     else {
