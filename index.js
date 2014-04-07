@@ -242,7 +242,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
 
   self.once('irq', function(err, data) {
     self.readAckFrame(function(err, ackbuff) {
-      next((err || !ackbuff || !checkAck(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+      next((err || !ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
     });
   });
 }
@@ -333,6 +333,7 @@ RFID.prototype.wireReadData = function (numBytes, next) {
 */
 /**************************************************************************/
 RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
+  var self = this;
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
   for (var i = 0; i < dataToWrite.length; i++) {
@@ -340,20 +341,31 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
       bufferToWrite[i] = dataToWrite[i];
     }
   }
-   var s = '[';
-  for (var i = 0; i < dataToWrite.length; i++) {
-    s += dataToWrite[i].toString(16) + ', '
-  }
-  s = s.slice(0, s.length-2) + ']';
-  console.log('\n\ttrying to read by sending:\n\t', s);
-  this.i2c.transfer(bufferToWrite, bytesToRead, function (err, data) {
+  if (DEBUG) {
     var s = '[';
-    for (var i = 0; i < data.length; i++) {
-      s += '0x'+data[i].toString(16) + ', '
+    for (var i = 0; i < dataToWrite.length; i++) {
+      s += dataToWrite[i].toString(16) + ', '
     }
     s = s.slice(0, s.length-2) + ']';
-    console.log('\treply:\n\t', err, '\n\t', s, '\n');
-    next && next(err, data);
+    console.log('\n\ttrying to read by sending:\n\t', s);
+  }
+  this.i2c.transfer(bufferToWrite, bytesToRead, function (err, data) {
+    if (DEBUG) {
+      var s = '[';
+      for (var i = 0; i < data.length; i++) {
+        s += '0x'+data[i].toString(16) + ', '
+      }
+      s = s.slice(0, s.length-2) + ']';
+      console.log('\treply:\n\t', err, '\n\t', s, '\n');
+    }
+    if (next && checkPacket(data)) {
+      if (DEBUG) {console.log('packet verified:\n', data);}
+      next(err, data);
+    }
+    else if (next) {
+      if (DEBUG) {console.log('invalid packet:\n', data);}
+      next(new Error('packet improperly formed'), data);
+    }
   });
 }
 
@@ -742,6 +754,51 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
       next(err, ack);
     }
   })
+}
+
+var checkPacket = function(packet) {
+  /*
+  Verify that the packet has a valid checksum or is an ack packet. Assumes the structure:
+
+  0         Direction of transfer (0 or 1)
+  1         preamble                0x00
+  2         SOP header              0x00
+  3                                 0xFF
+  4         Length
+  5         Length checksum
+  ...
+  Length+5  Data checksum
+  */
+
+  var successfulAck = [(0x0 || 0x1), 0x0, 0x0, 0xff, 0x0, 0xff]; // index 0 depends on direction of transfer
+
+  //  option 1: ack packet
+  var isAck = true;
+  for (var i = 1; i < successfulAck.length; i++) {
+    isAck = isAck && (successfulAck[i] === packet[i]);
+  }
+  if (isAck) {
+    return true;
+  }
+  //  option 2: the packet is valid via headers, cheksum
+  else if ((packet[1] === 0 && packet[2] === 0 && packet[3] === 0xff) && (packet[4] + packet[5]) % 256 === 0 ) {
+    //  passes start of packet and length checksum
+    var dl = packet[4];
+    var check = 0;
+    for (var i = 6; i <= dl + 6; i++) {
+      if (packet[i] != undefined) {
+        check += packet[i];
+      }
+      else {
+        return false; //  fails data schecksum
+      }
+    }    
+    console.log('checksum...sum', check, check%256);
+    if (check % 256 === 0) {
+      return true;  //  passes data checksum test
+    }
+  }
+  return false;
 }
 
 exports.RFID = RFID;
