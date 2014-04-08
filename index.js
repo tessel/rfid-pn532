@@ -1,7 +1,7 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
-var DEBUG = 0;1; // 1 if debugging, 0 if not
+var DEBUG = 1; // 1 if debugging, 0 if not
 
 var tm = process.binding('tm');
 var tessel = require('tessel');
@@ -688,12 +688,20 @@ RFID.prototype.accessMem = function() {
   self.readCard(PN532_MIFARE_ISO14443A, function(err, Card) {
     // Try to go through all 16 sectors (each has 4 blocks)
     // authenticating each sector and then dumping the blocks
-    console.log('read card, got\n', err, '\n', Card);
+    if (DEBUG) {
+      console.log('read card, got\n', err, '\n', Card);
+    }
     // for (var currentblock = 0; currentblock < /*64*/1; currentblock++) {
+    if (err || !Card || !Card.uid) {
+
+    }
+    else {
       var currentblock = 0;
       // Find out if it's a new block (if we need to re-authenticate)
       if(self.miFareClassicIsFirstBlock(currentblock)) {
-        console.log('first block, resetting authentication');
+        if (DEBUG) {
+          console.log('first block, resetting authentication');
+        }
         authenticated = false;
       }
       console.log('------------------------ Sector', currentblock, '------------------------');
@@ -701,14 +709,18 @@ RFID.prototype.accessMem = function() {
         // re-authenticate
 
         self.miFareClassicAuthenticateBlock(Card.uid, Card.uid.length, currentblock, 0, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF], function(err, data) {
-            console.log('success auth\'ing? [e,d]', err, data);
+            if (DEBUG) {
+              console.log('success auth\'ing? [e,d]', err, data);
+            }
             if (!err || data) {
               authenticated = true;
             }currentblock
             if (authenticated) {
               // now that we've auth'd, try to read the block
               self.readMemoryBlock(Card.uid, currentblock, function(err, data) {
-                console.log('tried to read block #', currentblock, ', got back\n', err, '\n', data);
+                if (DEBUG) {
+                  console.log('tried to read block #', currentblock, ', got back\n', err, '\n', data);
+                }
                 // wait for IRQ
                 self.once('irq', function(err, data) {
                   self.wireReadData(20, function(err, reply) {
@@ -731,6 +743,7 @@ RFID.prototype.accessMem = function() {
         //   // or 0xD3 0xF7 0xD3 0xF7 0xD3 0xF7 for NDEF formatted cards using key a,
         //   // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
       }
+    }
       // if (authenticated) {
       //   //  now that we've auth'd, try to read the block
       //   self.readMemoryBlock(Card.uid, currentblock, function(err, data) {
@@ -779,7 +792,7 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
       }
       next(err, ack);
     }
-  })
+  });
 }
 
 var checkPacket = function(packet) {
