@@ -1,7 +1,7 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
-//  todo: finish read mem
+//  todo: finish read mem, start anyting related to changing mem contents
 
 var DEBUG = 1; // 1 if debugging, 0 if not
 
@@ -43,7 +43,6 @@ function RFID (hardware, next) {
   self.hardware = hardware;
   self.irq = hardware.gpio(3);
   self.irq.watch('fall', function() {
-  // console.log('\t\t\t\t---> IRQ Low');
     self.emit('irq', null, 0);
   });
   self.nRST = hardware.gpio(2);
@@ -239,15 +238,6 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
     }
   });
 
-  // var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
-  // var checkAck = function (packet) {
-  //   var success = true;
-  //   for (var i = 0; i < successfulAck.length; i++) {
-  //     success = (success && (successfulAck[i] == packet[i])); 
-  //   }
-  //   return success;
-  // } 
-
   self.once('irq', function(err, data) {
     self.readAckFrame(function(err, ackbuff) {
       if (err) {
@@ -313,11 +303,6 @@ RFID.prototype.readAckFrame = function (next) {
 
 RFID.prototype.wireReadStatus = function () {
   var x = this.irq.readSync();
-
-  // if (DEBUG) {
-  //   console.log("IRQ", x);
-  // }
-
   if (x == 1)
     return PN532_I2C_BUSY;
   else
@@ -483,10 +468,6 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
         Card.uid = res.slice(13, 13 + Card.idLength); // NFCID
 
         if (DEBUG) {
-          // console.log('Read a card, got Buffer:\n')
-          // for (var i = 0; i < res.length; i++) {
-          //   console.log('\t', i, '\t', res[i], '\t', res[i].toString(16));
-          // }
           console.log('Parsed card:\n', Card);
         }
         next && next(err, Card);
@@ -574,7 +555,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
   uidLen
     Number of bytes in the UID
   blockNumber
-    Self explanatory. 0-63 for MiFare classic 1k
+    Self explanatory. 0-63 for MiFare classic 1k, 0-255 for 4k
   keyNumber
     Pick your authentication command
     0 = key B
@@ -649,30 +630,6 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
       });
     }
   });
-
-  // Read response packet
-  // setTimeout(self.wireReadData(63, function(err, reply) {
-  //   reply = reply.slice(1);
-  //   console.log('Tried to read block, got back e,d:\t', err);
-  //   for (var i = 0; i < reply.length; i++) {
-  //     console.log('\t', i, '\t', reply[i], '\t', reply[i].toString(16));
-  //   };
-  //   var e = new Error('read after auth not to spec');
-  //   var success = reply[6] == 0x41 && reply[7] == 0x00;
-  //   console.log('Did we authenticate?', reply[6].toString(16), reply[7].toString(16), reply[6] == 0x41, reply[7] == 0x00);
-  //   next(success ? null : e, success);
-  // }), 300);
-
-  // Check if the response is valid and we are authenticated???
-  // for an auth success it should be bytes 5-7: 0xD5 0x41 0x00
-  // Mifare auth error is technically byte 7: 0x14 but anything other and 0x00 is not good
-  // if (pn532_packetbuffer[7] != 0x00)
-  // {
-  //   console.log("Authentification failed. Buffer:");
-
-  //   return 0;
-  // }  
-  // return 1;
 }
 
 
@@ -724,8 +681,6 @@ RFID.prototype.accessMem = function() {
               });
             }
           });
-
-
         // if (currentblock == 0) {
         //   // This will be 0xFF 0xFF 0xFF 0xFF 0xFF 0xFF for Mifare Classic (non-NDEF!)
         //   // or 0xA0 0xA1 0xA2 0xA3 0xA4 0xA5 for NDEF formatted cards using key a,
@@ -738,33 +693,8 @@ RFID.prototype.accessMem = function() {
         //   // but keyb should be the same for both (0xFF 0xFF 0xFF 0xFF 0xFF 0xFF)
       }
     }
-      // if (authenticated) {
-      //   //  now that we've auth'd, try to read the block
-      //   self.readMemoryBlock(Card.uid, currentblock, function(err, data) {
-      //     console.log('tried to read block #'+currentblock, ', got back\n', err, '\n', data);
-      //   });
-      // }
-    // } // for loop's brace
   });
 }
-
-
-  // var authKey = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
-  // led1.high();
-  // //get uid
-  // self.readCard(PN532_MIFARE_ISO14443A, function(Card) {
-  //   led2.high();
-  //   led2.low();
-  //   console.log(Card);
-  //   //write 6-byte auth key
-  //   console.log('writing...')
-  //   self.writeRegister(authKey);
-  //   console.log('theoretically written')
-  //   self.wireReadData(20, function(res) {
-  //     console.log(res)
-  //   });
-  // });
-// }
 
 RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
   /*
