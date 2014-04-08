@@ -1,7 +1,7 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
-var DEBUG = 1; // 1 if debugging, 0 if not
+var DEBUG = 0;1; // 1 if debugging, 0 if not
 
 var tm = process.binding('tm');
 var tessel = require('tessel');
@@ -167,7 +167,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
 RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   var self = this;
   self.readCard(cardBaudRate, function(err, Card) {
-    next && next(err, Card.uid || null);
+    Card && next && next(err, Card.uid || null);
   });
 }
 
@@ -187,13 +187,13 @@ RFID.prototype.SAMConfig = function (next) {
   
   self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (!ack || err) {
-      console.log('failed to SAMConfig');
+      if (DEBUG) {console.log('failed to SAMConfig');}
       next(err, false);
     } 
     // read data packet
     else {
       self.wireReadData(8, function(err, response) {
-        console.log('SAMConfig response:\n', err, '\n', response);
+        if (DEBUG) {console.log('SAMConfig response:\n', err, '\n', response);}
         next(err, response);
         led1.high();
       });
@@ -386,12 +386,14 @@ RFID.prototype.writeRegister  = function (dataToWrite, next) {
       bufferToWrite[i] = dataToWrite[i];
     }
   }
-  var s = '[';
-  for (var i = 0; i < dataToWrite.length; i++) {
-    s += '0x'+dataToWrite[i].toString(16) + ', '
+  if (DEBUG) {
+    var s = '[';
+    for (var i = 0; i < dataToWrite.length; i++) {
+      s += '0x'+dataToWrite[i].toString(16) + ', '
+    }
+    s = s.slice(0, s.length-2) + ']';
+    console.log('\n\twriting buffer:\n\t', s, '\n');
   }
-  s = s.slice(0, s.length-2) + ']';
-  console.log('\n\twriting buffer:\n\t', s, '\n');
 
   this.i2c.send(bufferToWrite, function(err, data) {
     // console.log('\t---> got back\t', err, data);
@@ -803,7 +805,7 @@ var checkPacket = function(packet) {
         return false; //  fails data schecksum
       }
     }    
-    console.log('checksum...sum', check, check%256);
+    if (DEBUG) {console.log('checksum...sum', check, check%256);}
     if (check % 256 === 0) {
       return true;  //  passes data checksum test
     }
