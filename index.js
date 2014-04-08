@@ -47,7 +47,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   self.numListeners = 0;
   self.listening = false;
-  self.pollPeriod = 500;
+  self.pollPeriod = 250;
 
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
@@ -187,13 +187,17 @@ RFID.prototype.SAMConfig = function (next) {
   
   self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (!ack || err) {
-      if (DEBUG) {console.log('failed to SAMConfig');}
+      if (DEBUG) {
+        console.log('failed to SAMConfig');
+      }
       next(err, false);
     } 
     // read data packet
     else {
       self.wireReadData(8, function(err, response) {
-        if (DEBUG) {console.log('SAMConfig response:\n', err, '\n', response);}
+        if (DEBUG) {
+          console.log('SAMConfig response:\n', err, '\n', response);
+        }
         next(err, response);
         led1.high();
       });
@@ -228,7 +232,9 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
   */
   var self = this;
   self.wireSendCommand(cmd, function(err, data) {
-    if (DEBUG) {console.log('kickback from readreg:\n', err, '\n', data);}
+    if (DEBUG) {
+      console.log('kickback from readreg:\n', err, '\n', data);
+    }
   });
 
   // var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff];
@@ -364,11 +370,15 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
       console.log('\treply:\n\t', err, '\n\t', s, '\n');
     }
     if (next && checkPacket(data)) {
-      if (DEBUG) {console.log('packet verified:\n', data);}
+      if (DEBUG) {
+        console.log('packet verified:\n', data);
+      }
       next(err, data);
     }
     else if (next) {
-      if (DEBUG) {console.log('invalid packet:\n', data);}
+      if (DEBUG) {
+        console.log('invalid packet:\n', data);
+      }
       next(new Error('packet improperly formed'), data);
     }
   });
@@ -759,10 +769,14 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
   pn532_packetbuffer[2] = PN532_MIFARE_READ;
   pn532_packetbuffer[3] = addr; //This address can be 0-63 for MIFARE 1K card
 
-  if (DEBUG) {console.log('trying to read block', addr);}
+  if (DEBUG) {
+    console.log('trying to read block', addr);
+  }
   this.sendCommandCheckAck(pn532_packetbuffer, function(err, ack) {
     if (!err && ack) {
-      if (DEBUG) {console.log('got data:', ack);}
+      if (DEBUG) {
+        console.log('got data:', ack);
+      }
       next(err, ack);
     }
   })
@@ -805,7 +819,9 @@ var checkPacket = function(packet) {
         return false; //  fails data schecksum
       }
     }    
-    if (DEBUG) {console.log('checksum...sum', check, check%256);}
+    if (DEBUG) {
+      console.log('checksum...sum', check, check%256);
+    }
     if (check % 256 === 0) {
       return true;  //  passes data checksum test
     }
