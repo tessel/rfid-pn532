@@ -1,6 +1,8 @@
 // datasheet: http://www.nxp.com/documents/short_data_sheet/PN532_C1_SDS.pdf
 // user manual: http://www.nxp.com/documents/user_manual/141520.pdf
 
+//  todo: finish read mem
+
 var DEBUG = 1; // 1 if debugging, 0 if not
 
 var tm = process.binding('tm');
@@ -355,7 +357,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   if (DEBUG) {
     var s = '[';
     for (var i = 0; i < dataToWrite.length; i++) {
-      s += dataToWrite[i].toString(16) + ', '
+      s += dataToWrite[i].toString(16) + ', ';
     }
     s = s.slice(0, s.length-2) + ']';
     console.log('\n\ttrying to read by sending:\n\t', s);
@@ -364,7 +366,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
     if (DEBUG) {
       var s = '[';
       for (var i = 0; i < data.length; i++) {
-        s += '0x'+data[i].toString(16) + ', '
+        s += '0x'+data[i].toString(16) + ', ';
       }
       s = s.slice(0, s.length-2) + ']';
       console.log('\treply:\n\t', err, '\n\t', s, '\n');
@@ -375,11 +377,11 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
       }
       next(err, data);
     }
-    else if (next) {
+    else {
       if (DEBUG) {
         console.log('invalid packet:\n', data);
       }
-      next(new Error('packet improperly formed'), data);
+      next && next(new Error('packet improperly formed'), data);
     }
   });
 }
@@ -389,8 +391,6 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 RFID.prototype.writeRegister  = function (dataToWrite, next) {
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
-  // console.log('\t---------------write-------------------');
-  // console.log('\t---> writing\n');
   for (var i = 0; i < dataToWrite.length; i++) {
     if (dataToWrite[i]) {
       bufferToWrite[i] = dataToWrite[i];
@@ -406,8 +406,6 @@ RFID.prototype.writeRegister  = function (dataToWrite, next) {
   }
 
   this.i2c.send(bufferToWrite, function(err, data) {
-    // console.log('\t---> got back\t', err, data);
-    // console.log('\t---------------end write-------------------');
     next && next(err, data);
   });
   //  TODO
@@ -638,7 +636,7 @@ RFID.prototype.miFareClassicAuthenticateBlock = function (uid, uidLen, blockNumb
     }
     else {
       // we ack'd properly
-      self.wireReadData(30, function(err, reply) {
+      self.wireReadData(8, function(err, reply) {
         reply = reply.slice(1);
         console.log('Got block auth reply e,d:\t', err);
         for (var i = 0; i < reply.length; i++) {
@@ -693,7 +691,9 @@ RFID.prototype.accessMem = function() {
     }
     // for (var currentblock = 0; currentblock < /*64*/1; currentblock++) {
     if (err || !Card || !Card.uid) {
-
+      if (DEBUG) {
+        console.log('invalid card');
+      }
     }
     else {
       var currentblock = 0;
@@ -721,12 +721,6 @@ RFID.prototype.accessMem = function() {
                 if (DEBUG) {
                   console.log('tried to read block #', currentblock, ', got back\n', err, '\n', data);
                 }
-                // wait for IRQ
-                self.once('irq', function(err, data) {
-                  self.wireReadData(20, function(err, reply) {
-                    console.log('err/contents:\n', err, '\n', reply);
-                  })
-                });
               });
             }
           });
@@ -776,6 +770,7 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
   /*
   read the contents of the memory block
   */
+  var self = this;
   var pn532_packetbuffer = new Buffer(4);
   pn532_packetbuffer[0] = PN532_COMMAND_INDATAEXCHANGE;
   pn532_packetbuffer[1] = 0x01;  // either card 1 or 2
@@ -785,12 +780,29 @@ RFID.prototype.readMemoryBlock = function(cardId, addr, next) {
   if (DEBUG) {
     console.log('trying to read block', addr);
   }
-  this.sendCommandCheckAck(pn532_packetbuffer, function(err, ack) {
+  self.sendCommandCheckAck(pn532_packetbuffer, function(err, ack) {
     if (!err && ack) {
       if (DEBUG) {
-        console.log('got data:', ack);
+        console.log('got data:', ack, '\nwaiting on IRQ...');
       }
-      next(err, ack);
+      // wait for IRQ
+      self.once('irq', function(err, data) {
+        if (DEBUG) {
+          console.log('IRQ recieved, reading data');
+        }
+        //  this is where stuff is no longer working properly
+        self.wireSendCommand(pn532_packetbuffer, function(err, reply) {
+          if (DEBUG) {
+            console.log('err/contents:\n', err, '\n', reply);
+          }
+          self.readRegisters([], 24, function(err, data) {
+            if (DEBUG) {
+              console.log('reply on read 24 reg\n', err, '\n', data);
+            }
+            next(err, data);
+          });
+        });
+      });
     }
   });
 }

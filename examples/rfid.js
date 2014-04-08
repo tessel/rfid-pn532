@@ -11,11 +11,11 @@ rfid.on('connected', function (version) {
 
   rfid.accessMem();
 
-  rfid.on('data', function (uid) {
-    var id = '';
-    for (var i = 0; i < uid.length; i++) {
-      id += ('0x' + (uid[i] < 16 ? '0' : '') + uid[i].toString(16) + ' ');
-    }
-    console.log('\nRead UID:\t', id, '\ntimestamp:', time, '\n');
-  });
+  // rfid.on('data', function (uid) {
+  //   var id = '';
+  //   for (var i = 0; i < uid.length; i++) {
+  //     id += ('0x' + (uid[i] < 16 ? '0' : '') + uid[i].toString(16) + ' ');
+  //   }
+  //   console.log('\nRead UID:\t', id, '\ntimestamp:', time, '\n');
+  // });
 });
