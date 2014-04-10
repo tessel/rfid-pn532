@@ -48,6 +48,10 @@ function RFID (hardware, next) {
   self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
   self.i2c.initialize();
 
+  self.numListeners = 0;
+  self.listening = false;
+  self.pollPeriod = 250;
+
   self.irq.input();
   setTimeout(function () {
     self.nRST.high();
@@ -60,6 +64,36 @@ function RFID (hardware, next) {
       }
     });
   }, WAKE_UP_TIME);
+
+  // If we get a new listener
+  self.on('newListener', function(event) {
+    if (event == "data") {
+      // Add to the number of things listening
+      self.numListeners += 1;
+      // If we're not already listening
+      if (!self.listening) {
+        // Start listening
+        self.setListening();
+      }
+    }
+  });
+
+  // If we remove a listener
+  self.on('removeListener', function(event) {
+    if (event == "data") {
+      // Remove from the number of things listening
+      self.numListeners -= 1;
+      // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
+      if (self.numListeners < 1) {
+        self.listening = false;
+      }
+    }
+  });
+
+  self.on('removeAllListeners', function(event) {
+    self.numListeners = 0;
+    self.listening = false;
+  });
 }
 
 util.inherits(RFID, events.EventEmitter);
@@ -411,6 +445,25 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
       }, 50);
     }
   });
+}
+
+RFID.prototype.setListening = function () {
+  //  COnfigure the module to automatically emit UIDs
+  var self = this;
+  self.listening = true;
+  // Loop until nothing is listening
+  self.listeningLoop = setInterval(function () {
+    if (self.numListeners) {
+      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
+        if (!err && uid) {
+          self.emit('rfid-uid', uid);
+          }
+      });
+    }
+    else {
+      clearInterval(listeningLoop);
+    }
+  }, self.pollPeriod);
 }
 
 var checkPacket = function(packet) {
