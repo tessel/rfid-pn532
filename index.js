@@ -43,7 +43,7 @@ function RFID (hardware, next) {
   self.nRST = hardware.gpio(2);
   
   self.nRST.output();
-  self.nRST.low(); // toggle reset every time we initialize
+  self.nRST.low(); // Toggle reset every time we initialize
 
   self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
   self.i2c.initialize();
@@ -103,7 +103,6 @@ RFID.prototype.initialize = function (hardware, next) {
     next && next(err, firmware);
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
-  // Once Reset actually works...
 }
 
 RFID.prototype.getFirmwareVersion = function (next) {
@@ -165,7 +164,7 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
 }
 
 RFID.prototype.SAMConfig = function (next) {
-  //  configure the Secure Access Module
+  //  Configure the Secure Access Module
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
@@ -181,7 +180,7 @@ RFID.prototype.SAMConfig = function (next) {
       }
       next(err, false);
     } 
-    // read data packet
+    // Read data packet
     else {
       self.wireReadData(8, function(err, response) {
         if (DEBUG) {
@@ -343,7 +342,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   });
 }
 
-RFID.prototype.writeRegister  = function (dataToWrite, next) {
+RFID.prototype.writeRegister = function (dataToWrite, next) {
   /*
   Write data to the PN532's I2C register
 
