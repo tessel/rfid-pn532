@@ -448,16 +448,17 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
 }
 
 RFID.prototype.setListening = function () {
-  //  COnfigure the module to automatically emit UIDs
+  //  Configure the module to automatically emit UIDs
   var self = this;
   self.listening = true;
+  self.numListeners++;
   // Loop until nothing is listening
   self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
       self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
         if (!err && uid) {
           self.emit('rfid-uid', uid);
-          }
+        }
       });
     }
     else {
