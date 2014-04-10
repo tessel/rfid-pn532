@@ -66,36 +66,6 @@ function RFID (hardware, next) {
       }
     });
   }, WAKE_UP_TIME);
-
-  // If we get a new listener
-  self.on('newListener', function(event) {
-    if (event == "data") {
-      // Add to the number of things listening
-      self.numListeners += 1;
-      // If we're not already listening
-      if (!self.listening) {
-        // Start listening
-        self.setListening();
-      }
-    }
-  });
-
-  // If we remove a listener
-  self.on('removeListener', function(event) {
-    if (event == "data") {
-      // Remove from the number of things listening
-      self.numListeners -= 1;
-      // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
-      if (self.numListeners < 1) {
-        self.listening = false;
-      }
-    }
-  });
-
-  self.on('removeAllListeners', function(event) {
-    self.numListeners = 0;
-    self.listening = false;
-  });
 }
 
 util.inherits(RFID, events.EventEmitter);
@@ -108,14 +78,15 @@ RFID.prototype.initialize = function (hardware, next) {
   // Once Reset actually works...
 }
 
-/**************************************************************************/
-/*! 
-    @brief  Checks the firmware version of the PN5xx chip
 
-    @returns  The chip's firmware version and ID
-*/
-/**************************************************************************/
 RFID.prototype.getFirmwareVersion = function (next) {
+  /*
+  Ask the PN532 chip for its firmware version
+
+  Args
+    next
+      Callback function; gets err, reply as args
+  */
   var self = this;
   var response;
 
@@ -150,32 +121,26 @@ RFID.prototype.getFirmwareVersion = function (next) {
   });
 }
 
-/**************************************************************************/
-/*! 
-    Waits for an ISO14443A target to enter the field
-    
-    @param  cardBaudRate  Baud rate of the card
-    @param  uid           Pointer to the array that will be populated
-                          with the card's UID (up to 7 bytes)
-    @param  uidLength     Pointer to the variable that will hold the
-                          length of the card's UID.
-    
-    @returns 1 if everything executed properly, 0 for an error...maybe in C...
-*/
-/**************************************************************************/
+
 RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
+  /*
+  Passes the UID of the next ISO14443A target that is read to te callback
+
+  Args
+    cardBaudRate
+      Baud rate of RF communication with card. When in doubt, use 0.
+    next
+      Callback function; gets err, reply as args
+  */
   var self = this;
   self.readCard(cardBaudRate, function(err, Card) {
     Card && next && next(err, Card.uid || null);
   });
 }
 
-/**************************************************************************/
-/*! 
-    @brief  Configures the SAM (Secure Access Module)
-*/
-/**************************************************************************/
+
 RFID.prototype.SAMConfig = function (next) {
+  //  configure the Secure Access Module
   var self = this;
   var commandBuffer = [
     PN532_COMMAND_SAMCONFIGURATION,
@@ -205,29 +170,15 @@ RFID.prototype.SAMConfig = function (next) {
 }
 
 
-/**************************************************************************/
-/*! 
-    @brief  Sends a command and waits a specified period for the ACK
-
-    @param  cmd       Pointer to the command buffer
-    @param  cmdlen    The size of the command in bytes 
-    @param  timeout   timeout before giving up
-    
-    @returns  1 if everything is OK, 0 if timeout occured before an
-              ACK was recieved
-*/
-/**************************************************************************/
-
 RFID.prototype.sendCommandCheckAck = function (cmd, next) {
   /*
-  send a command, check that the module acknowledges
+  Send a command, check that the module acknowledges
 
-  cmd
-    command to send
-  cmdlen
-    length of the command (bytes)
-  next
-    callback. args are err, reply
+  Args
+    cmd
+      Command to send
+    next
+      Callback function; gets err, reply as args
   */
   var self = this;
   self.wireSendCommand(cmd, function(err, data) {
@@ -248,21 +199,20 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
   });
 }
 
-/**************************************************************************/
-/*! 
-    @brief  Writes a command to the PN532, automatically inserting the
-            preamble and required frame details (checksum, len, etc.)
 
-    @param  cmd       Pointer to the command buffer
-*/
-/**************************************************************************/
 RFID.prototype.wireSendCommand = function (cmd, next) {
+  /*
+  Add the proper header, footer, checksums, etc. and send the command
+
+  Args
+    cmd
+      Command to send
+    next
+      Callback function; gets err, reply as args
+  */
   var checksum;
   var self = this;
-
   var cmdlen = cmd.length+1;
-
- //  tessel.sleep(2);     // or whatever the delay is for waking up the board
 
   checksum = -1;
 
@@ -275,7 +225,7 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
 
   checksum += PN532_HOSTTOPN532;
 
-  for (var i=0; i<cmdlen-1; i++) {
+  for (var i = 0; i < cmdlen - 1; i++) {
     sendCommand.push(cmd[i]);
     if(cmd[i]) {
       checksum += cmd[i];
@@ -287,19 +237,17 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
   self.writeRegister(sendCommand, next);
 } 
 
-/**************************************************************************/
-/*! 
-    @brief  Tries to read the PN532 ACK frame (not to be confused with 
-          the I2C ACK signal)
-*/
-/**************************************************************************/
+
 RFID.prototype.readAckFrame = function (next) {
+  // Read in what is hopefully a positive acknowledge from the PN532
   this.wireReadData(6, function(err, ackbuff) {
     next(err, ackbuff);
   });
 }
 
+
 RFID.prototype.wireReadStatus = function () {
+  //  Check the status of the IRQ pin
   var x = this.irq.readSync();
   if (x == 1)
     return PN532_I2C_BUSY;
@@ -307,28 +255,40 @@ RFID.prototype.wireReadStatus = function () {
     return PN532_I2C_READY;
 }
 
-/**************************************************************************/
-/*! 
-    @brief  Reads n bytes of data from the PN532 via I2C
-
-    @param  buff      Pointer to the buffer where data will be written
-    @param  n         Number of bytes to be read
-*/
-/**************************************************************************/
 RFID.prototype.wireReadData = function (numBytes, next) {
+  /*
+  Read in numBytes of data (0-63) from the PN532's I2C buffer
+
+  Args
+    numBytes
+      Number of bytes to read (0-63)
+    next
+      Callback function; gets err, reply as args
+  */
   b = new Buffer(0);
-  this.readRegisters(b, numBytes+2, function(err, response) {
-    next && next(err, response);
+  this.readRegisters(b, numBytes + 2, function(err, reply) {
+    next && next(err, reply);
   });
 }
 
+/*//////////////////////////////////////////////////////////////////////////////
 
-/**************************************************************************/
-/*! 
-    @brief  I2C Helper Functions Below
-*/
-/**************************************************************************/
+I2C helper functions
+
+//////////////////////////////////////////////////////////////////////////////*/
+
 RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
+  /*
+  Read and write data from/to the PN532's I2C buffer
+
+  Args
+    dataToWrite
+      What to write to the buffer
+    bytesToRead
+      How many reply bytes to read back
+    next
+        Callback function; gets err, reply as args
+  */
   var self = this;
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
@@ -370,8 +330,16 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
 }
 
 
-// Write a Buffer of bytes to the register.
 RFID.prototype.writeRegister  = function (dataToWrite, next) {
+  /*
+  Write data to the PN532's I2C register
+
+  Args
+    dataToWrite
+      Data to write to buffer
+    next
+      Callback function; gets err, reply as args
+  */
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
   for (var i = 0; i < dataToWrite.length; i++) {
@@ -388,33 +356,11 @@ RFID.prototype.writeRegister  = function (dataToWrite, next) {
     console.log('\n\twriting buffer:\n\t', s, '\n');
   }
 
-  this.i2c.send(bufferToWrite, function(err, data) {
-    next && next(err, data);
+  this.i2c.send(bufferToWrite, function(err, reply) {
+    next && next(err, reply);
   });
-  //  TODO
-  //  Modify everything to give this function Buffers instead of Arrays
 }
 
-
-RFID.prototype.setListening = function () {
-  var self = this;
-  self.listening = true;
-  // Loop until nothing is listening
-  self.listeningLoop = setInterval(function () {
-    if (self.numListeners) {
-      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
-          if (!err && uid) {
-            led2.high();
-            self.emit('data', uid);
-            led2.low();
-          }
-      });
-    }
-    else {
-      clearInterval(listeningLoop);
-    }
-  }, self.pollPeriod);
-}
 
 RFID.prototype.readCard = function(cardBaudRate, next) {
   /*
