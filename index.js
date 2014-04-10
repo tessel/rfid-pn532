@@ -35,8 +35,6 @@ var MIFARE_CMD_AUTH_B = 0x61;
 var led1 = tessel.led(1).output().low();
 var led2 = tessel.led(2).output().low();
 
-var packetBuffer = [];
-
 function RFID (hardware, next) {
   var self = this;
 
@@ -638,7 +636,6 @@ RFID.prototype.accessMem = function() {
   var authenticated; // flag whether or not block is authenticated
   var success; // on authentication
   var keyuniversal = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF];
-  // var uidLen = 4; // for mifare Classic. Figure out a way to do this more elegantly.
 
   self.readCard(PN532_MIFARE_ISO14443A, function(err, Card) {
     // Try to go through all 16 sectors (each has 4 blocks)
@@ -774,7 +771,7 @@ var checkPacket = function(packet) {
         return false; //  fails data schecksum
       }
     }    
-    if (DEBUG) {
+    if (DEBUG) { 
       console.log('checksum...sum', check, check%256);
     }
     if (check % 256 === 0) {
@@ -787,4 +784,4 @@ var checkPacket = function(packet) {
 exports.RFID = RFID;
 exports.connect = function (hardware, portBank) {
   return new RFID(hardware, portBank);
-}
+} 
