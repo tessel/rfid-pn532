@@ -32,9 +32,6 @@ var PN532_COMMAND_INDATAEXCHANGE = 0x40;
 var MIFARE_CMD_AUTH_A = 0x60;
 var MIFARE_CMD_AUTH_B = 0x61;
 
-var led1 = tessel.led(1).output().low();
-var led2 = tessel.led(2).output().low();
-
 function RFID (hardware, next) {
   var self = this;
 
@@ -44,10 +41,7 @@ function RFID (hardware, next) {
     self.emit('irq', null, 0);
   });
   self.nRST = hardware.gpio(2);
-  self.numListeners = 0;
-  self.listening = false;
-  self.pollPeriod = 250;
-
+  
   self.nRST.output();
   self.nRST.low(); // toggle reset every time we initialize
 
@@ -77,7 +71,6 @@ RFID.prototype.initialize = function (hardware, next) {
   // TODO: Do something with the bank to determine the IRQ and RESET lines
   // Once Reset actually works...
 }
-
 
 RFID.prototype.getFirmwareVersion = function (next) {
   /*
@@ -121,7 +114,6 @@ RFID.prototype.getFirmwareVersion = function (next) {
   });
 }
 
-
 RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   /*
   Passes the UID of the next ISO14443A target that is read to te callback
@@ -137,7 +129,6 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
     Card && next && next(err, Card.uid || null);
   });
 }
-
 
 RFID.prototype.SAMConfig = function (next) {
   //  configure the Secure Access Module
@@ -163,12 +154,10 @@ RFID.prototype.SAMConfig = function (next) {
           console.log('SAMConfig response:\n', err, '\n', response);
         }
         next(err, response);
-        led1.high();
       });
     }
   });
 }
-
 
 RFID.prototype.sendCommandCheckAck = function (cmd, next) {
   /*
@@ -198,7 +187,6 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
     });
   });
 }
-
 
 RFID.prototype.wireSendCommand = function (cmd, next) {
   /*
@@ -237,14 +225,12 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
   self.writeRegister(sendCommand, next);
 } 
 
-
 RFID.prototype.readAckFrame = function (next) {
   // Read in what is hopefully a positive acknowledge from the PN532
   this.wireReadData(6, function(err, ackbuff) {
     next(err, ackbuff);
   });
 }
-
 
 RFID.prototype.wireReadStatus = function () {
   //  Check the status of the IRQ pin
@@ -270,12 +256,6 @@ RFID.prototype.wireReadData = function (numBytes, next) {
     next && next(err, reply);
   });
 }
-
-/*//////////////////////////////////////////////////////////////////////////////
-
-I2C helper functions
-
-//////////////////////////////////////////////////////////////////////////////*/
 
 RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   /*
@@ -329,7 +309,6 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   });
 }
 
-
 RFID.prototype.writeRegister  = function (dataToWrite, next) {
   /*
   Write data to the PN532's I2C register
@@ -360,7 +339,6 @@ RFID.prototype.writeRegister  = function (dataToWrite, next) {
     next && next(err, reply);
   });
 }
-
 
 RFID.prototype.readCard = function(cardBaudRate, next) {
   /*
@@ -435,7 +413,6 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
   });
 }
 
-
 var checkPacket = function(packet) {
   /*
   Verify that the packet has a valid checksum or is an ack packet. Assumes the structure:
@@ -484,6 +461,7 @@ var checkPacket = function(packet) {
 }
 
 exports.RFID = RFID;
+
 exports.connect = function (hardware, portBank) {
   return new RFID(hardware, portBank);
 } 
