@@ -3,7 +3,7 @@
 
 //  todo: finish read mem, start anyting related to changing mem contents
 
-var DEBUG = 1; // 1 if debugging, 0 if not
+var DEBUG = 0;1; // 1 if debugging, 0 if not
 
 var tm = process.binding('tm');
 var tessel = require('tessel');
