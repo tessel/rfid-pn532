@@ -3,7 +3,7 @@
 
 //  todo: finish read mem, start anyting related to changing mem contents
 
-var DEBUG = 0;1; // 1 if debugging, 0 if not
+var DEBUG = 0; // 1 if debugging, 0 if not
 
 var tm = process.binding('tm');
 var tessel = require('tessel');
@@ -260,9 +260,7 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
 
 RFID.prototype.readAckFrame = function (next) {
   // Read in what is hopefully a positive acknowledge from the PN532
-  this.wireReadData(6, function(err, ackbuff) {
-    next(err, ackbuff);
-  });
+  this.wireReadData(6, next);
 }
 
 RFID.prototype.wireReadStatus = function () {
@@ -284,7 +282,7 @@ RFID.prototype.wireReadData = function (numBytes, next) {
     next
       Callback function; gets err, reply as args
   */
-  b = new Buffer(0);
+  var b = new Buffer(0);
   this.readRegisters(b, numBytes + 2, function(err, reply) {
     next && next(err, reply);
   });
@@ -368,9 +366,7 @@ RFID.prototype.writeRegister = function (dataToWrite, next) {
     console.log('\n\twriting buffer:\n\t', s, '\n');
   }
 
-  this.i2c.send(bufferToWrite, function(err, reply) {
-    next && next(err, reply);
-  });
+  this.i2c.send(bufferToWrite, next);
 }
 
 RFID.prototype.readCard = function(cardBaudRate, next) {
