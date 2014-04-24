@@ -41,7 +41,7 @@ function RFID (hardware, next) {
     self.emit('irq', null, 0);
   });
   self.nRST = hardware.gpio(2);
-  
+
   self.nRST.output();
   self.nRST.low(); // Toggle reset every time we initialize
 
@@ -100,10 +100,12 @@ util.inherits(RFID, events.EventEmitter);
 
 RFID.prototype.initialize = function (hardware, next) {
   this.getFirmwareVersion(function(err, firmware) {
-    next && next(err, firmware);
+    if(next) {
+      next(err, firmware);
+    }
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
-}
+};
 
 RFID.prototype.getFirmwareVersion = function (next) {
   /*
@@ -145,7 +147,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
       });
     }
   });
-}
+};
 
 RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   /*
@@ -159,9 +161,11 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   */
   var self = this;
   self.readCard(cardBaudRate, function(err, Card) {
-    Card && next && next(err, Card.uid || null);
+    if(Card && next) {
+      next(err, Card.uid || null);
+    }
   });
-}
+};
 
 RFID.prototype.SAMConfig = function (next) {
   //  Configure the Secure Access Module
@@ -172,14 +176,14 @@ RFID.prototype.SAMConfig = function (next) {
     0x14,
     0x01
   ];
-  
+
   self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (!ack || err) {
       if (DEBUG) {
         console.log('failed to SAMConfig');
       }
       next(err, false);
-    } 
+    }
     // Read data packet
     else {
       self.wireReadData(8, function(err, response) {
@@ -190,7 +194,7 @@ RFID.prototype.SAMConfig = function (next) {
       });
     }
   });
-}
+};
 
 RFID.prototype.sendCommandCheckAck = function (cmd, next) {
   /*
@@ -211,15 +215,17 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
 
   self.once('irq', function(err, data) {
     self.readAckFrame(function(err, ackbuff) {
-      if (err) {
-        next && next(err, null);
+      if (err && next) {
+        next(err, null);
       }
       else {
-        next && next((!ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+        if (next) {
+          next((!ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+        }
       }
     });
   });
-}
+};
 
 RFID.prototype.wireSendCommand = function (cmd, next) {
   /*
@@ -237,11 +243,11 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
 
   checksum = -1;
 
-  var sendCommand = [PN532_PREAMBLE, 
-    PN532_PREAMBLE, 
-    PN532_STARTCODE2, 
-    cmdlen, 
-    (255 - cmdlen) + 1, 
+  var sendCommand = [PN532_PREAMBLE,
+    PN532_PREAMBLE,
+    PN532_STARTCODE2,
+    cmdlen,
+    (255 - cmdlen) + 1,
     PN532_HOSTTOPN532];
 
   checksum += PN532_HOSTTOPN532;
@@ -256,12 +262,12 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
   self.writeRegister(sendCommand, next);
-} 
+};
 
 RFID.prototype.readAckFrame = function (next) {
   // Read in what is hopefully a positive acknowledge from the PN532
   this.wireReadData(6, next);
-}
+};
 
 RFID.prototype.wireReadStatus = function () {
   //  Check the status of the IRQ pin
@@ -270,7 +276,7 @@ RFID.prototype.wireReadStatus = function () {
     return PN532_I2C_BUSY;
   else
     return PN532_I2C_READY;
-}
+};
 
 RFID.prototype.wireReadData = function (numBytes, next) {
   /*
@@ -284,9 +290,11 @@ RFID.prototype.wireReadData = function (numBytes, next) {
   */
   var b = new Buffer(0);
   this.readRegisters(b, numBytes + 2, function(err, reply) {
-    next && next(err, reply);
+    if (next) {
+      next(err, reply);
+    }
   });
-}
+};
 
 RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   /*
@@ -335,10 +343,12 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
       if (DEBUG) {
         console.log('invalid packet:\n', data);
       }
-      next && next(new Error('packet improperly formed'), data);
+      if (next) {
+        next(new Error('packet improperly formed'), data);
+      }
     }
   });
-}
+};
 
 RFID.prototype.writeRegister = function (dataToWrite, next) {
   /*
@@ -360,14 +370,14 @@ RFID.prototype.writeRegister = function (dataToWrite, next) {
   if (DEBUG) {
     var s = '[';
     for (var i = 0; i < dataToWrite.length; i++) {
-      s += '0x'+dataToWrite[i].toString(16) + ', '
+      s += '0x'+dataToWrite[i].toString(16) + ', ';
     }
     s = s.slice(0, s.length-2) + ']';
     console.log('\n\twriting buffer:\n\t', s, '\n');
   }
 
   this.i2c.send(bufferToWrite, next);
-}
+};
 
 RFID.prototype.readCard = function(cardBaudRate, next) {
   /*
@@ -387,17 +397,19 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
     1,
     cardBaudRate
   ];
-  
+
   self.sendCommandCheckAck(commandBuffer, function(err, ack) {
     if (err || !ack) {
-      next && next(err, ack);
+      if (next) {
+        next(err, ack);
+      }
     }
     else {
       // Wait for a card to enter the field
       var status = PN532_I2C_BUSY;
       var parseCard = function(err, res) {
         /* ISO14443A card response should be in the following format:
-        
+
           byte            Description
           -------------   ------------------------------------------
           b0..6           Frame header and preamble
@@ -408,7 +420,7 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
           b12             NFCID Length
           b13..NFCIDLen   NFCID                                      */
 
-        var Card = new Object();
+        var Card = {};
         res = res.slice(1); // cut off the read/write direction bit
         Card.header = res.slice(0, 7);                // Frame header & preamble
         Card.numTags = res[7];                        // Tags found
@@ -421,8 +433,10 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
         if (DEBUG) {
           console.log('Parsed card:\n', Card);
         }
-        next && next(err, Card);
-      }
+        if (next) {
+          next(err, Card);
+        }
+      };
       var waitLoop = setInterval(function() {
         if (self.wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
@@ -433,14 +447,16 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
               parseCard(err, res);
             }
             else {
-              next && next(err || new Error('invalid packet'), res);
+              if (next) {
+                next(err || new Error('invalid packet'), res);
+              }
             }
           });
         }
       }, 50);
     }
   });
-}
+};
 
 RFID.prototype.setListening = function () {
   //  Configure the module to automatically emit UIDs
@@ -460,7 +476,7 @@ RFID.prototype.setListening = function () {
       clearInterval(listeningLoop);
     }
   }, self.pollPeriod);
-}
+};
 
 var checkPacket = function(packet) {
   /*
@@ -498,8 +514,8 @@ var checkPacket = function(packet) {
       else {
         return false; //  fails data schecksum
       }
-    }    
-    if (DEBUG) { 
+    }
+    if (DEBUG) {
       console.log('checksum...sum', check, check%256);
     }
     if (check % 256 === 0) {
@@ -507,10 +523,10 @@ var checkPacket = function(packet) {
     }
   }
   return false;
-}
+};
 
 exports.RFID = RFID;
 
 exports.connect = function (hardware, portBank) {
   return new RFID(hardware, portBank);
-} 
+};
