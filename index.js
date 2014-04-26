@@ -5,10 +5,6 @@
 
 var DEBUG = 0; // 1 if debugging, 0 if not
 
-var tm = process.binding('tm');
-var tessel = require('tessel');
-var events = require('events');
-
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 
@@ -17,20 +13,20 @@ var PN532_COMMAND_GETFIRMWAREVERSION = 0x02;
 var PN532_COMMAND_SAMCONFIGURATION = 0x14;
 var PN532_I2C_READY = 0x01;
 var PN532_PREAMBLE = 0x00;
-var PN532_STARTCODE1 = 0x00;
+var PN532_STARTCODE1 = 0x00;              // jshint ignore:line
 var PN532_STARTCODE2 = 0xFF;
 var PN532_POSTAMBLE = 0x00;
 var PN532_I2C_ADDRESS = 0x48 >> 1;
-var PN532_I2C_READBIT = 0x01;
+var PN532_I2C_READBIT = 0x01;             // jshint ignore:line
 var PN532_I2C_BUSY = 0x00;
 var PN532_I2C_READY = 0x01;
-var PN532_I2C_READYTIMEOUT = 20;
+var PN532_I2C_READYTIMEOUT = 20;          // jshint ignore:line
 var PN532_HOSTTOPN532 = 0xD4;
 var PN532_MIFARE_ISO14443A = 0x00;
 var WAKE_UP_TIME = 100;
-var PN532_COMMAND_INDATAEXCHANGE = 0x40;
-var MIFARE_CMD_AUTH_A = 0x60;
-var MIFARE_CMD_AUTH_B = 0x61;
+var PN532_COMMAND_INDATAEXCHANGE = 0x40;  // jshint ignore:line
+var MIFARE_CMD_AUTH_A = 0x60;             // jshint ignore:line
+var MIFARE_CMD_AUTH_B = 0x61;             // jshint ignore:line
 
 function RFID (hardware, next) {
   var self = this;
@@ -57,9 +53,8 @@ function RFID (hardware, next) {
     self.nRST.high();
     self.getFirmwareVersion(function (err, version) {
       if (!version) {
-        throw "Cannot connect to PN532.";
-      }
-      else {
+        throw 'Cannot connect to PN532.';
+      } else {
         self.emit('connected', version);
       }
     });
@@ -67,7 +62,7 @@ function RFID (hardware, next) {
 
   // If we get a new listener
   self.on('newListener', function(event) {
-    if (event == "data") {
+    if (event == 'data') {
       // Add to the number of things listening
       self.numListeners += 1;
       // If we're not already listening
@@ -80,7 +75,7 @@ function RFID (hardware, next) {
 
   // If we remove a listener
   self.on('removeListener', function(event) {
-    if (event == "data") {
+    if (event == 'data') {
       // Remove from the number of things listening
       self.numListeners -= 1;
       // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
@@ -90,13 +85,16 @@ function RFID (hardware, next) {
     }
   });
 
-  self.on('removeAllListeners', function(event) {
+  self.on('removeAllListeners', function() {
     self.numListeners = 0;
     self.listening = false;
   });
+  if (next) {
+    next();
+  }
 }
 
-util.inherits(RFID, events.EventEmitter);
+util.inherits(RFID, EventEmitter);
 
 RFID.prototype.initialize = function (hardware, next) {
   this.getFirmwareVersion(function(err, firmware) {
@@ -119,7 +117,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
   var response;
 
   if (DEBUG) {
-    console.log("Starting firmware check...");
+    console.log('Starting firmware check...');
   }
 
   var commandBuffer = [PN532_COMMAND_GETFIRMWAREVERSION];
@@ -140,8 +138,8 @@ RFID.prototype.getFirmwareVersion = function (next) {
       }
       self.wireReadData(12, function (err, firmware) {
         if (DEBUG) {
-          console.log("FIRMWARE: ", firmware);
-          console.log("cleaned firmware: ", response);
+          console.log('FIRMWARE: ', firmware);
+          console.log('cleaned firmware: ', response);
         }
         self.SAMConfig(next);
       });
@@ -160,9 +158,9 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
       Callback function; gets err, reply as args
   */
   var self = this;
-  self.readCard(cardBaudRate, function(err, Card) {
-    if(Card && next) {
-      next(err, Card.uid || null);
+  self.readCard(cardBaudRate, function(err, card) {
+    if (card && next) {
+      next(err, card.uid || null);
     }
   });
 };
@@ -213,15 +211,15 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
     }
   });
 
-  self.once('irq', function(err, data) {
-    self.readAckFrame(function(err, ackbuff) {
-      if (err && next) {
-        next(err, null);
-      }
-      else {
-        if (next) {
-          next((!ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
-        }
+  self.once('irq', function(err1, data) {
+    if (err1 && next) {
+      next(err1, data);
+    }
+    self.readAckFrame(function(err2, ackbuff) {
+      if (err2 && next) {
+        next(err2, null);
+      } else if (next) {
+        next((!ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
       }
     });
   });
@@ -272,10 +270,12 @@ RFID.prototype.readAckFrame = function (next) {
 RFID.prototype.wireReadStatus = function () {
   //  Check the status of the IRQ pin
   var x = this.irq.readSync();
-  if (x == 1)
+  if (x == 1) { 
     return PN532_I2C_BUSY;
-  else
+  }
+  else {
     return PN532_I2C_READY;
+  }
 };
 
 RFID.prototype.wireReadData = function (numBytes, next) {
@@ -308,7 +308,6 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
     next
         Callback function; gets err, reply as args
   */
-  var self = this;
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
   for (var i = 0; i < dataToWrite.length; i++) {
@@ -318,7 +317,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   }
   if (DEBUG) {
     var s = '[';
-    for (var i = 0; i < dataToWrite.length; i++) {
+    for (i = 0; i < dataToWrite.length; i++) {
       s += dataToWrite[i].toString(16) + ', ';
     }
     s = s.slice(0, s.length-2) + ']';
@@ -369,7 +368,7 @@ RFID.prototype.writeRegister = function (dataToWrite, next) {
   }
   if (DEBUG) {
     var s = '[';
-    for (var i = 0; i < dataToWrite.length; i++) {
+    for (i = 0; i < dataToWrite.length; i++) {
       s += '0x'+dataToWrite[i].toString(16) + ', ';
     }
     s = s.slice(0, s.length-2) + ']';
@@ -403,10 +402,8 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
       if (next) {
         next(err, ack);
       }
-    }
-    else {
+    } else {
       // Wait for a card to enter the field
-      var status = PN532_I2C_BUSY;
       var parseCard = function(err, res) {
         /* ISO14443A card response should be in the following format:
 
@@ -445,8 +442,7 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
           self.wireReadData(dataLength, function(err, res) {
             if (!err && checkPacket(res)) {
               parseCard(err, res);
-            }
-            else {
+            } else {
               if (next) {
                 next(err || new Error('invalid packet'), res);
               }
@@ -464,15 +460,14 @@ RFID.prototype.setListening = function () {
   self.listening = true;
   self.numListeners++;
   // Loop until nothing is listening
-  self.listeningLoop = setInterval(function () {
+  var listeningLoop = setInterval(function () {
     if (self.numListeners) {
       self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
-        if (!err && uid) {
+        if (err === undefined && uid && uid.length) {
           self.emit('rfid-uid', uid);
         }
       });
-    }
-    else {
+    } else {
       clearInterval(listeningLoop);
     }
   }, self.pollPeriod);
@@ -501,17 +496,15 @@ var checkPacket = function(packet) {
   }
   if (isAck) {
     return true;
-  }
-  //  option 2: the packet is valid via headers, cheksum
-  else if ((packet[1] === 0 && packet[2] === 0 && packet[3] === 0xff) && (packet[4] + packet[5]) % 256 === 0 ) {
+  } else if ((packet[1] === 0 && packet[2] === 0 && packet[3] === 0xff) && (packet[4] + packet[5]) % 256 === 0 ) {
+    //  option 2: the packet is valid via headers, cheksum
     //  passes start of packet and length checksum
     var dl = packet[4];
     var check = 0;
-    for (var i = 6; i <= dl + 6; i++) {
-      if (packet[i] != undefined) {
+    for (i = 6; i <= dl + 6; i++) {
+      if (packet[i] !== undefined) {
         check += packet[i];
-      }
-      else {
+      } else {
         return false; //  fails data schecksum
       }
     }

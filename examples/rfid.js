@@ -4,7 +4,7 @@ var rfid = require("../").connect(tessel.port("D"));
 
 var time = 0;
 var dt = 100;
-setInterval(function(){time += dt/1000}, dt);
+setInterval(function () { time += dt / 1000 }, dt);
 
 var printUID = function(uid) {
   if (uid) {
