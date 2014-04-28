@@ -33,7 +33,7 @@ function RFID (hardware, next) {
 
   self.hardware = hardware;
   self.irq = hardware.gpio(3);
-  self.irq.watch('fall', function() {
+  self.irq.watch('fall', function () {
     self.emit('irq', null, 0);
   });
   self.nRST = hardware.gpio(2);
@@ -61,7 +61,7 @@ function RFID (hardware, next) {
   }, WAKE_UP_TIME);
 
   // If we get a new listener
-  self.on('newListener', function(event) {
+  self.on('newListener', function (event) {
     if (event == 'data') {
       // Add to the number of things listening
       self.numListeners += 1;
@@ -74,7 +74,7 @@ function RFID (hardware, next) {
   });
 
   // If we remove a listener
-  self.on('removeListener', function(event) {
+  self.on('removeListener', function (event) {
     if (event == 'data') {
       // Remove from the number of things listening
       self.numListeners -= 1;
@@ -85,7 +85,7 @@ function RFID (hardware, next) {
     }
   });
 
-  self.on('removeAllListeners', function() {
+  self.on('removeAllListeners', function () {
     self.numListeners = 0;
     self.listening = false;
   });
@@ -97,7 +97,7 @@ function RFID (hardware, next) {
 util.inherits(RFID, EventEmitter);
 
 RFID.prototype.initialize = function (hardware, next) {
-  this.getFirmwareVersion(function(err, firmware) {
+  this.getFirmwareVersion(function (err, firmware) {
     if(next) {
       next(err, firmware);
     }
@@ -125,7 +125,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
   if (DEBUG) {
     console.log('Beginning sendCommandCheckAck in getFirmwareVersion...');
   }
-  self.sendCommandCheckAck(commandBuffer, function(err, ack) {
+  self.sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (DEBUG) {
       console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
@@ -158,7 +158,7 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
       Callback function; gets err, reply as args
   */
   var self = this;
-  self.readCard(cardBaudRate, function(err, card) {
+  self.readCard(cardBaudRate, function (err, card) {
     if (card && next) {
       next(err, card.uid || null);
     }
@@ -175,7 +175,7 @@ RFID.prototype.SAMConfig = function (next) {
     0x01
   ];
 
-  self.sendCommandCheckAck(commandBuffer, function(err, ack) {
+  self.sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (!ack || err) {
       if (DEBUG) {
         console.log('failed to SAMConfig');
@@ -184,7 +184,7 @@ RFID.prototype.SAMConfig = function (next) {
     }
     // Read data packet
     else {
-      self.wireReadData(8, function(err, response) {
+      self.wireReadData(8, function (err, response) {
         if (DEBUG) {
           console.log('SAMConfig response:\n', err, '\n', response);
         }
@@ -205,21 +205,21 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
       Callback function; gets err, reply as args
   */
   var self = this;
-  self.wireSendCommand(cmd, function(err, data) {
+  self.wireSendCommand(cmd, function (err, data) {
     if (DEBUG) {
       console.log('kickback from readreg:\n', err, '\n', data);
     }
   });
 
-  self.once('irq', function(err1, data) {
+  self.once('irq', function (err1, data) {
     if (err1 && next) {
       next(err1, data);
     }
-    self.readAckFrame(function(err2, ackbuff) {
+    self.readAckFrame(function (err2, ackbuff) {
       if (err2 && next) {
         next(err2, null);
       } else if (next) {
-        next((!ackbuff || !checkPacket(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+        next((!ackbuff || !checkAck(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
       }
     });
   });
@@ -289,7 +289,7 @@ RFID.prototype.wireReadData = function (numBytes, next) {
       Callback function; gets err, reply as args
   */
   var b = new Buffer(0);
-  this.readRegisters(b, numBytes + 2, function(err, reply) {
+  this.readRegisters(b, numBytes + 2, function (err, reply) {
     if (next) {
       next(err, reply);
     }
@@ -332,7 +332,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
       s = s.slice(0, s.length-2) + ']';
       console.log('\treply:\n\t', err, '\n\t', s, '\n');
     }
-    if (next && checkPacket(data)) {
+    if (next && (checkAck(data) || checkPacket(data))) {
       if (DEBUG) {
         console.log('packet verified:\n', data);
       }
@@ -378,7 +378,7 @@ RFID.prototype.writeRegister = function (dataToWrite, next) {
   this.i2c.send(bufferToWrite, next);
 };
 
-RFID.prototype.readCard = function(cardBaudRate, next) {
+RFID.prototype.readCard = function (cardBaudRate, next) {
   /*
   Read the contents of the card, call the callback with the resulting Buffer
 
@@ -397,14 +397,14 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
     cardBaudRate
   ];
 
-  self.sendCommandCheckAck(commandBuffer, function(err, ack) {
+  self.sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (err || !ack) {
       if (next) {
         next(err, ack);
       }
     } else {
       // Wait for a card to enter the field
-      var parseCard = function(err, res) {
+      var parseCard = function (err, res) {
         /* ISO14443A card response should be in the following format:
 
           byte            Description
@@ -434,12 +434,12 @@ RFID.prototype.readCard = function(cardBaudRate, next) {
           next(err, Card);
         }
       };
-      var waitLoop = setInterval(function() {
+      var waitLoop = setInterval(function () {
         if (self.wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
           var dataLength = 20;
-          self.wireReadData(dataLength, function(err, res) {
+          self.wireReadData(dataLength, function (err, res) {
             if (!err && checkPacket(res)) {
               parseCard(err, res);
             } else {
@@ -462,7 +462,7 @@ RFID.prototype.setListening = function () {
   // Loop until nothing is listening
   var listeningLoop = setInterval(function () {
     if (self.numListeners) {
-      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(err, uid) {
+      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function (err, uid) {
         if (err === undefined && uid && uid.length) {
           self.emit('rfid-uid', uid);
         }
@@ -473,7 +473,21 @@ RFID.prototype.setListening = function () {
   }, self.pollPeriod);
 };
 
-var checkPacket = function(packet) {
+var checkAck = function (packet) {
+  /*
+  Verify that the packet is an ack packet. 
+  */
+  var successfulAck = [(0x0 || 0x1), 0x0, 0x0, 0xff, 0x0, 0xff]; // index 0 depends on direction of transfer
+
+  //  option 1: ack packet
+  var isAck = true;
+  for (var i = 1; i < successfulAck.length; i++) {
+    isAck = isAck && (successfulAck[i] === packet[i]);
+  }
+  return isAck;
+}
+
+var checkPacket = function (packet) {
   /*
   Verify that the packet has a valid checksum or is an ack packet. Assumes the structure:
 
@@ -487,16 +501,7 @@ var checkPacket = function(packet) {
   Length+5  Data checksum
   */
 
-  var successfulAck = [(0x0 || 0x1), 0x0, 0x0, 0xff, 0x0, 0xff]; // index 0 depends on direction of transfer
-
-  //  option 1: ack packet
-  var isAck = true;
-  for (var i = 1; i < successfulAck.length; i++) {
-    isAck = isAck && (successfulAck[i] === packet[i]);
-  }
-  if (isAck) {
-    return true;
-  } else if ((packet[1] === 0 && packet[2] === 0 && packet[3] === 0xff) && (packet[4] + packet[5]) % 256 === 0 ) {
+  if ((packet[1] === 0 && packet[2] === 0 && packet[3] === 0xff) && (packet[4] + packet[5]) % 256 === 0 ) {
     //  option 2: the packet is valid via headers, cheksum
     //  passes start of packet and length checksum
     var dl = packet[4];
