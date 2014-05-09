@@ -42,7 +42,7 @@ function RFID (hardware, next) {
   self.nRST.low(); // Toggle reset every time we initialize
 
   self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
-  self.i2c.initialize();
+  self.i2c._initialize();
 
   self.numListeners = 0;
   self.listening = false;
@@ -51,7 +51,7 @@ function RFID (hardware, next) {
   self.irq.input();
   setTimeout(function () {
     self.nRST.high();
-    self.getFirmwareVersion(function (err, version) {
+    self._getFirmwareVersion(function (err, version) {
       if (!version) {
         throw 'Cannot connect to PN532.';
       } else {
@@ -96,8 +96,8 @@ function RFID (hardware, next) {
 
 util.inherits(RFID, EventEmitter);
 
-RFID.prototype.initialize = function (hardware, next) {
-  this.getFirmwareVersion(function (err, firmware) {
+RFID.prototype._initialize = function (hardware, next) {
+  this._getFirmwareVersion(function (err, firmware) {
     if(next) {
       next(err, firmware);
     }
@@ -105,7 +105,7 @@ RFID.prototype.initialize = function (hardware, next) {
   // TODO: Do something with the bank to determine the IRQ and RESET lines
 };
 
-RFID.prototype.getFirmwareVersion = function (next) {
+RFID.prototype._getFirmwareVersion = function (next) {
   /*
   Ask the PN532 chip for its firmware version
 
@@ -123,7 +123,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
   var commandBuffer = [PN532_COMMAND_GETFIRMWAREVERSION];
 
   if (DEBUG) {
-    console.log('Beginning sendCommandCheckAck in getFirmwareVersion...');
+    console.log('Beginning sendCommandCheckAck in _getFirmwareVersion...');
   }
   self.sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (DEBUG) {
@@ -134,7 +134,7 @@ RFID.prototype.getFirmwareVersion = function (next) {
     }
     else {
       if (DEBUG) {
-        console.log('Reading wire data in getFirmwareVersion');
+        console.log('Reading wire data in _getFirmwareVersion');
       }
       self.wireReadData(12, function (err, firmware) {
         if (DEBUG) {
@@ -270,7 +270,7 @@ RFID.prototype.readAckFrame = function (next) {
 RFID.prototype.wireReadStatus = function () {
   //  Check the status of the IRQ pin
   var x = this.irq.readSync();
-  if (x == 1) { 
+  if (x == 1) {
     return PN532_I2C_BUSY;
   }
   else {
@@ -475,7 +475,7 @@ RFID.prototype.setListening = function () {
 
 var checkAck = function (packet) {
   /*
-  Verify that the packet is an ack packet. 
+  Verify that the packet is an ack packet.
   */
   var successfulAck = [(0x0 || 0x1), 0x0, 0x0, 0xff, 0x0, 0xff]; // index 0 depends on direction of transfer
 
@@ -523,8 +523,9 @@ var checkPacket = function (packet) {
   return false;
 };
 
-exports.RFID = RFID;
-
-exports.connect = function (hardware, portBank) {
+function use (hardware, portBank) {
   return new RFID(hardware, portBank);
-};
+}
+
+exports.RFID = RFID;
+exports.use = use;

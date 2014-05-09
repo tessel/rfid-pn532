@@ -7,29 +7,40 @@ npm install rfid-pn532
 ```
 ##Example
 ```js
-var rfid = require("rfid-pn532");
 var tessel = require('tessel');
-var PN532_MIFARE_ISO14443A = 0x00;
+console.log('Connecting...');
+var rfid = require("rfid-pn532").use(tessel.port("A"));
 
-var led1 = tessel.led(1).output().low();
-var led2 = tessel.led(2).output().low();
+var time = 0;
+var dt = 100;
+setInterval(function () { time += dt / 1000 }, dt);
 
-rfid.initialize(tessel.port("A"), function(firmware){
-  console.log('firmware initialized')
-  rfid.SAMConfig(function(config){
-    led1.high();
+var printUID = function(uid) {
+  if (uid) {
+    var id = '';
+    //  Format the UID nicely
+    for (var i = 0; i < uid.length; i++) {
+      id += ('0x' + (uid[i] < 16 ? '0' : '') + uid[i].toString(16) + ' ');
+    }
+    console.log('Read UID:\t', id, '\ntimestamp:', time, '\n');
+  }
+}
 
-    console.log("Done with config");
-     setImmediate(function loop () {
-      led2.low();
-      console.log("starting passive read");
-      rfid.readPassiveTargetID(PN532_MIFARE_ISO14443A, function(uid){
-        console.log("uid", uid);
-        led2.high();
-        setTimeout(loop, 200);
-      });
-    });
+rfid.on('connected', function (version) {
+  console.log("\n\t\tReady to read RFID card\n");
+
+  //  One way
+  rfid.setListening();
+  rfid.on('rfid-uid', function(uid) {
+    printUID(uid);
   });
+
+  // //  Another way
+  // setInterval(function() {
+  //   rfid.readPassiveTargetID(0, function(err, uid) {
+  //     printUID(uid);
+  //   });
+  // }, 500);
 });
 ```
 

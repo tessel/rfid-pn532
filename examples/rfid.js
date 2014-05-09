@@ -1,6 +1,6 @@
 var tessel = require('tessel');
 console.log('Connecting...');
-var rfid = require("../").connect(tessel.port("D"));
+var rfid = require("../").use(tessel.port("A"));
 
 var time = 0;
 var dt = 100;
