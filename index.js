@@ -55,7 +55,7 @@ function RFID (hardware, callback) {
       if (!version) {
         throw 'Cannot connect to PN532.';
       } else {
-        self.emit('connected', version);
+        self.emit('ready', version);
       }
     });
   }, WAKE_UP_TIME);

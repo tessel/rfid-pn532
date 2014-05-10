@@ -29,7 +29,7 @@ var printUID = function(uid) {
   }
 }
 
-rfid.on('connected', function (version) {
+rfid.on('ready', function (version) {
   console.log("\n\t\tReady to read RFID card\n");
 
   //  One way
