@@ -53,7 +53,10 @@ function RFID (hardware, callback) {
     self.nRST.high();
     self._getFirmwareVersion(function (err, version) {
       if (!version) {
-        throw 'Cannot connect to PN532.';
+        self.emit('error', err);
+        if (callback) {
+          callback(err)
+        }
       } else {
         self.emit('ready', version);
       }
@@ -90,7 +93,7 @@ function RFID (hardware, callback) {
     self.listening = false;
   });
   if (callback) {
-    callback();
+    callback(null, self);
   }
 }
 
@@ -188,13 +191,115 @@ RFID.prototype._getFirmwareVersion = function (callback) {
   });
 };
 
+RFID.prototype._getUID = function (cardBaudRate, callback) {
+  /*
+  Passes the UID of the next ISO14443A target that is read to the callback
+
+  Args
+    cardBaudRate
+      Baud rate of RF communication with card. When in doubt, use 0.
+    callback
+      Callback function; gets err, reply as args
+  */
+  var self = this;
+  self._read(cardBaudRate, function (err, card) {
+    if (card && callback) {
+      callback(err, card.uid || null);
+    }
+  });
+};
+
 RFID.prototype._initialize = function (hardware, callback) {
-  this._getFirmwareVersion(function (err, firmware) {
-    if(callback) {
-      callback(err, firmware);
+  var self = this;
+
+  self._getFirmwareVersion(function (err, firmware) {
+    if (err) {
+      self.emit('error', err);
+      if (callback) {
+        callback(err);
+      }
+    }
+    if (callback) {
+      callback(null, firmware);
     }
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
+};
+
+RFID.prototype._read = function (cardBaudRate, callback) {
+  /*
+  Read the contents of the card, call the callback with the resulting Buffer
+
+  Args
+    cardBaudRate
+      Baud rate used for communication with the card
+    callback
+      Callback function; args: err, data
+
+  TODO: use IRQ interrupt instead of polling
+  */
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INLISTPASSIVETARGET,
+    1,
+    cardBaudRate
+  ];
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        callback(err, ack);
+      }
+    } else {
+      // Wait for a card to enter the field
+      var parseCard = function (err, res) {
+        /* ISO14443A card response should be in the following format:
+
+          byte            Description
+          -------------   ------------------------------------------
+          b0..6           Frame header and preamble
+          b7              Tags Found
+          b8              Tag Number (only one used in this example)
+          b9..10          SENS_RES
+          b11             SEL_RES
+          b12             NFCID Length
+          b13..NFCIDLen   NFCID                                      */
+
+        var Card = {};
+        res = res.slice(1); // cut off the read/write direction bit
+        Card.header = res.slice(0, 7);                // Frame header & preamble
+        Card.numTags = res[7];                        // Tags found
+        Card.tagNum = res[8];                         // Tag number
+        Card.SENS_RES = res.slice(9, 11);             // SENS_RES
+        Card.SEL_RES = res[11];                       // SEL_RES
+        Card.idLength = res[12];                      // NFCID Length
+        Card.uid = res.slice(13, 13 + Card.idLength); // NFCID
+
+        if (DEBUG) {
+          console.log('Parsed card:\n', Card);
+        }
+        if (callback) {
+          callback(err, Card);
+        }
+      };
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 20;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err && self._checkPacket(res)) {
+              parseCard(err, res);
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
 };
 
 RFID.prototype._readAckFrame = function (callback) {
@@ -325,9 +430,9 @@ RFID.prototype._setListening = function () {
   // Loop until nothing is listening
   var listeningLoop = setInterval(function () {
     if (self.numListeners) {
-      self.readPassiveTargetID(PN532_MIFARE_ISO14443A, function (err, uid) {
+      self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
         if (err === undefined && uid && uid.length) {
-          self.emit('rfid-uid', uid);
+          self.emit('read', uid);
         }
       });
     } else {
@@ -431,102 +536,19 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
   this.i2c.send(bufferToWrite, callback);
 };
 
-RFID.prototype.readCard = function (cardBaudRate, callback) {
-  /*
-  Read the contents of the card, call the callback with the resulting Buffer
-
-  Args
-    cardBaudRate
-      Baud rate used for communication with the card
-    callback
-      Callback function; args: err, data
-
-  TODO: use IRQ interrupt instead of polling
-  */
-  var self = this;
-  var commandBuffer = [
-    PN532_COMMAND_INLISTPASSIVETARGET,
-    1,
-    cardBaudRate
-  ];
-
-  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
-    if (err || !ack) {
-      if (callback) {
-        callback(err, ack);
-      }
-    } else {
-      // Wait for a card to enter the field
-      var parseCard = function (err, res) {
-        /* ISO14443A card response should be in the following format:
-
-          byte            Description
-          -------------   ------------------------------------------
-          b0..6           Frame header and preamble
-          b7              Tags Found
-          b8              Tag Number (only one used in this example)
-          b9..10          SENS_RES
-          b11             SEL_RES
-          b12             NFCID Length
-          b13..NFCIDLen   NFCID                                      */
-
-        var Card = {};
-        res = res.slice(1); // cut off the read/write direction bit
-        Card.header = res.slice(0, 7);                // Frame header & preamble
-        Card.numTags = res[7];                        // Tags found
-        Card.tagNum = res[8];                         // Tag number
-        Card.SENS_RES = res.slice(9, 11);             // SENS_RES
-        Card.SEL_RES = res[11];                       // SEL_RES
-        Card.idLength = res[12];                      // NFCID Length
-        Card.uid = res.slice(13, 13 + Card.idLength); // NFCID
-
-        if (DEBUG) {
-          console.log('Parsed card:\n', Card);
-        }
-        if (callback) {
-          callback(err, Card);
-        }
-      };
-      var waitLoop = setInterval(function () {
-        if (self._wireReadStatus() === PN532_I2C_READY) {
-          clearInterval(waitLoop);
-          // read data packet
-          var dataLength = 20;
-          self._wireReadData(dataLength, function (err, res) {
-            if (!err && self._checkPacket(res)) {
-              parseCard(err, res);
-            } else {
-              if (callback) {
-                callback(err || new Error('invalid packet'), res);
-              }
-            }
-          });
-        }
-      }, 50);
+RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
+  if (NaN(pollPeriod)) {
+    console.log('Error in setPollPeriod: NaN')
+  } else {
+    this.pollPeriod = pollPeriod;
+    if (callback) {
+      callback()
     }
-  });
-};
+  }
+}
 
-RFID.prototype.readPassiveTargetID = function (cardBaudRate, callback) {
-  /*
-  Passes the UID of the next ISO14443A target that is read to the callback
-
-  Args
-    cardBaudRate
-      Baud rate of RF communication with card. When in doubt, use 0.
-    callback
-      Callback function; gets err, reply as args
-  */
-  var self = this;
-  self.readCard(cardBaudRate, function (err, card) {
-    if (card && callback) {
-      callback(err, card.uid || null);
-    }
-  });
-};
-
-function use (hardware, portBank) {
-  return new RFID(hardware, portBank);
+function use (hardware) {
+  return new RFID(hardware);
 }
 
 exports.RFID = RFID;
