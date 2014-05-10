@@ -1,6 +1,9 @@
 #RFID
 Driver for the rfid-pn532 Tessel RFID module ([PN532](http://www.adafruit.com/datasheets/pn532longds.pdf)).
 
+##TODO
+Get auth working
+
 ##Installation
 ```sh
 npm install rfid-pn532

@@ -68,7 +68,7 @@ function RFID (hardware, next) {
       // If we're not already listening
       if (!self.listening) {
         // Start listening
-        self.setListening();
+        self._setListening();
       }
     }
   });
@@ -125,7 +125,7 @@ RFID.prototype._getFirmwareVersion = function (next) {
   if (DEBUG) {
     console.log('Beginning sendCommandCheckAck in _getFirmwareVersion...');
   }
-  self.sendCommandCheckAck(commandBuffer, function (err, ack) {
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (DEBUG) {
       console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
@@ -136,12 +136,12 @@ RFID.prototype._getFirmwareVersion = function (next) {
       if (DEBUG) {
         console.log('Reading wire data in _getFirmwareVersion');
       }
-      self.wireReadData(12, function (err, firmware) {
+      self._wireReadData(12, function (err, firmware) {
         if (DEBUG) {
           console.log('FIRMWARE: ', firmware);
           console.log('cleaned firmware: ', response);
         }
-        self.SAMConfig(next);
+        self._SAMConfig(next);
       });
     }
   });
@@ -165,7 +165,7 @@ RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
   });
 };
 
-RFID.prototype.SAMConfig = function (next) {
+RFID.prototype._SAMConfig = function (next) {
   //  Configure the Secure Access Module
   var self = this;
   var commandBuffer = [
@@ -175,7 +175,7 @@ RFID.prototype.SAMConfig = function (next) {
     0x01
   ];
 
-  self.sendCommandCheckAck(commandBuffer, function (err, ack) {
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (!ack || err) {
       if (DEBUG) {
         console.log('failed to SAMConfig');
@@ -184,7 +184,7 @@ RFID.prototype.SAMConfig = function (next) {
     }
     // Read data packet
     else {
-      self.wireReadData(8, function (err, response) {
+      self._wireReadData(8, function (err, response) {
         if (DEBUG) {
           console.log('SAMConfig response:\n', err, '\n', response);
         }
@@ -194,7 +194,7 @@ RFID.prototype.SAMConfig = function (next) {
   });
 };
 
-RFID.prototype.sendCommandCheckAck = function (cmd, next) {
+RFID.prototype._sendCommandCheckAck = function (cmd, next) {
   /*
   Send a command, check that the module acknowledges
 
@@ -205,7 +205,7 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
       Callback function; gets err, reply as args
   */
   var self = this;
-  self.wireSendCommand(cmd, function (err, data) {
+  self._wireSendCommand(cmd, function (err, data) {
     if (DEBUG) {
       console.log('kickback from readreg:\n', err, '\n', data);
     }
@@ -215,17 +215,17 @@ RFID.prototype.sendCommandCheckAck = function (cmd, next) {
     if (err1 && next) {
       next(err1, data);
     }
-    self.readAckFrame(function (err2, ackbuff) {
+    self._readAckFrame(function (err2, ackbuff) {
       if (err2 && next) {
         next(err2, null);
       } else if (next) {
-        next((!ackbuff || !checkAck(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
+        next((!ackbuff || !self._checkAck(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
       }
     });
   });
 };
 
-RFID.prototype.wireSendCommand = function (cmd, next) {
+RFID.prototype._wireSendCommand = function (cmd, next) {
   /*
   Add the proper header, footer, checksums, etc. and send the command
 
@@ -259,15 +259,15 @@ RFID.prototype.wireSendCommand = function (cmd, next) {
   checksum = checksum % 256;
   sendCommand.push((255 - checksum));
   sendCommand.push(PN532_POSTAMBLE);
-  self.writeRegister(sendCommand, next);
+  self._writeRegister(sendCommand, next);
 };
 
-RFID.prototype.readAckFrame = function (next) {
+RFID.prototype._readAckFrame = function (next) {
   // Read in what is hopefully a positive acknowledge from the PN532
-  this.wireReadData(6, next);
+  this._wireReadData(6, next);
 };
 
-RFID.prototype.wireReadStatus = function () {
+RFID.prototype._wireReadStatus = function () {
   //  Check the status of the IRQ pin
   var x = this.irq.readSync();
   if (x == 1) {
@@ -278,7 +278,7 @@ RFID.prototype.wireReadStatus = function () {
   }
 };
 
-RFID.prototype.wireReadData = function (numBytes, next) {
+RFID.prototype._wireReadData = function (numBytes, next) {
   /*
   Read in numBytes of data (0-63) from the PN532's I2C buffer
 
@@ -289,14 +289,14 @@ RFID.prototype.wireReadData = function (numBytes, next) {
       Callback function; gets err, reply as args
   */
   var b = new Buffer(0);
-  this.readRegisters(b, numBytes + 2, function (err, reply) {
+  this._readRegisters(b, numBytes + 2, function (err, reply) {
     if (next) {
       next(err, reply);
     }
   });
 };
 
-RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
+RFID.prototype._readRegisters = function (dataToWrite, bytesToRead, next) {
   /*
   Read and write data from/to the PN532's I2C buffer
 
@@ -308,6 +308,8 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
     next
         Callback function; gets err, reply as args
   */
+  var self = this;
+
   var bufferToWrite = new Buffer(dataToWrite.length);
   bufferToWrite.fill(0);
   for (var i = 0; i < dataToWrite.length; i++) {
@@ -323,7 +325,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
     s = s.slice(0, s.length-2) + ']';
     console.log('\n\ttrying to read by sending:\n\t', s);
   }
-  this.i2c.transfer(bufferToWrite, bytesToRead, function (err, data) {
+  self.i2c.transfer(bufferToWrite, bytesToRead, function (err, data) {
     if (DEBUG) {
       var s = '[';
       for (var i = 0; i < data.length; i++) {
@@ -332,7 +334,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
       s = s.slice(0, s.length-2) + ']';
       console.log('\treply:\n\t', err, '\n\t', s, '\n');
     }
-    if (next && (checkAck(data) || checkPacket(data))) {
+    if (next && (self._checkAck(data) || self._checkPacket(data))) {
       if (DEBUG) {
         console.log('packet verified:\n', data);
       }
@@ -349,7 +351,7 @@ RFID.prototype.readRegisters = function (dataToWrite, bytesToRead, next) {
   });
 };
 
-RFID.prototype.writeRegister = function (dataToWrite, next) {
+RFID.prototype._writeRegister = function (dataToWrite, next) {
   /*
   Write data to the PN532's I2C register
 
@@ -397,7 +399,7 @@ RFID.prototype.readCard = function (cardBaudRate, next) {
     cardBaudRate
   ];
 
-  self.sendCommandCheckAck(commandBuffer, function (err, ack) {
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (err || !ack) {
       if (next) {
         next(err, ack);
@@ -435,12 +437,12 @@ RFID.prototype.readCard = function (cardBaudRate, next) {
         }
       };
       var waitLoop = setInterval(function () {
-        if (self.wireReadStatus() === PN532_I2C_READY) {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
           var dataLength = 20;
-          self.wireReadData(dataLength, function (err, res) {
-            if (!err && checkPacket(res)) {
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err && self._checkPacket(res)) {
               parseCard(err, res);
             } else {
               if (next) {
@@ -454,7 +456,7 @@ RFID.prototype.readCard = function (cardBaudRate, next) {
   });
 };
 
-RFID.prototype.setListening = function () {
+RFID.prototype._setListening = function () {
   //  Configure the module to automatically emit UIDs
   var self = this;
   self.listening = true;
@@ -473,7 +475,7 @@ RFID.prototype.setListening = function () {
   }, self.pollPeriod);
 };
 
-var checkAck = function (packet) {
+RFID.prototype._checkAck = function (packet) {
   /*
   Verify that the packet is an ack packet.
   */
@@ -485,9 +487,9 @@ var checkAck = function (packet) {
     isAck = isAck && (successfulAck[i] === packet[i]);
   }
   return isAck;
-}
+};
 
-var checkPacket = function (packet) {
+RFID.prototype._checkPacket = function (packet) {
   /*
   Verify that the packet has a valid checksum or is an ack packet. Assumes the structure:
 
