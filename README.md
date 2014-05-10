@@ -2,7 +2,7 @@
 Driver for the rfid-pn532 Tessel RFID module ([PN532](http://www.adafruit.com/datasheets/pn532longds.pdf)).
 
 ##TODO
-Get auth working
+Get auth working, read/write to card capabilities
 
 ##Installation
 ```sh
