@@ -45,7 +45,7 @@ function RFID (hardware, callback) {
   self.i2c._initialize();
 
   self.numListeners = 0;
-  self.listening = false;
+  self.listeningLoop = null;
   self.pollPeriod = 250;
 
   self.irq.input();
@@ -55,7 +55,7 @@ function RFID (hardware, callback) {
       if (!version) {
         self.emit('error', err);
         if (callback) {
-          callback(err)
+          callback(err);
         }
       } else {
         self.emit('ready', version);
@@ -69,9 +69,9 @@ function RFID (hardware, callback) {
       // Add to the number of things listening
       self.numListeners += 1;
       // If we're not already listening
-      if (!self.listening) {
+      if (!self.listeningLoop) {
         // Start listening
-        self._setListening();
+        self._startListening();
       }
     }
   });
@@ -90,7 +90,7 @@ function RFID (hardware, callback) {
 
   self.on('removeAllListeners', function () {
     self.numListeners = 0;
-    self.listening = false;
+    self.listeningLoop = null;
   });
   if (callback) {
     callback(null, self);
@@ -422,23 +422,47 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
   });
 };
 
-RFID.prototype._setListening = function () {
+RFID.prototype._startListening = function (callback) {
   //  Configure the module to automatically emit UIDs
   var self = this;
-  self.listening = true;
-  self.numListeners++;
   // Loop until nothing is listening
-  var listeningLoop = setInterval(function () {
+  self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
       self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
         if (err === undefined && uid && uid.length) {
           self.emit('read', uid);
+        } else if (callback) {
+          if (err) {
+            self.emit('error', err);
+            callback(err);
+            return;
+          }
+          err = new Error('No UID');
+          self.emit('error', err);
+          callback(err);
+          return;
         }
       });
     } else {
-      clearInterval(listeningLoop);
+      if (callback) {
+        self._stopListening(callback);
+      } else {
+        self._stopListening();
+      }
     }
   }, self.pollPeriod);
+  if (callback) {
+    callback();
+  }
+};
+
+RFID.prototype._stopListening = function (callback) {
+  var self = this;
+  clearInterval(self.listeningLoop);
+  self.listeningLoop = null;
+  if (callback) {
+    callback();
+  }
 };
 
 RFID.prototype._wireReadData = function (numBytes, callback) {
@@ -536,16 +560,24 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
   this.i2c.send(bufferToWrite, callback);
 };
 
+// Set the time in milliseconds between each check for a target
 RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
+  var self = this;
   if (NaN(pollPeriod)) {
-    console.log('Error in setPollPeriod: NaN')
-  } else {
-    this.pollPeriod = pollPeriod;
     if (callback) {
-      callback()
+      err = new Error('NaN');
+      callback(err);
+      self.emit('error', err);
     }
+    return;
   }
-}
+  this.pollPeriod = pollPeriod;
+  if (callback) {
+    self._stopListening(self._startListening(callback()));
+  } else {
+    self._stopListening(self._startListening());
+  }
+};
 
 function use (hardware) {
   return new RFID(hardware);
