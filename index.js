@@ -430,7 +430,7 @@ RFID.prototype._startListening = function (callback) {
     if (self.numListeners) {
       self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
         if (err === undefined && uid && uid.length) {
-          self.emit('read', uid);
+          self.emit('data', uid);
         } else if (callback) {
           if (err) {
             self.emit('error', err);
@@ -560,7 +560,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
   this.i2c.send(bufferToWrite, callback);
 };
 
-// Set the time in milliseconds between each check for a target
+// Set the time in milliseconds between each check for an RFID device
 RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   var self = this;
   if (NaN(pollPeriod)) {
@@ -573,7 +573,13 @@ RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   }
   this.pollPeriod = pollPeriod;
   if (callback) {
-    self._stopListening(self._startListening(callback()));
+    self._stopListening(self._startListening(function (err) {
+      if (err) {
+        callback(err);
+        return;
+      }
+      callback();
+    }));
   } else {
     self._stopListening(self._startListening());
   }
