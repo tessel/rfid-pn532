@@ -10,40 +10,21 @@ npm install rfid-pn532
 ```
 ##Example
 ```js
+/*********************************************
+This basic rfid example listens for an RFID
+device to come within range of the module,
+then logs its UID to the console.
+*********************************************/
+
 var tessel = require('tessel');
-console.log('Connecting...');
-var rfid = require("rfid-pn532").use(tessel.port("A"));
-
-var time = 0;
-var dt = 100;
-setInterval(function () { time += dt / 1000 }, dt);
-
-var printUID = function(uid) {
-  if (uid) {
-    var id = '';
-    //  Format the UID nicely
-    for (var i = 0; i < uid.length; i++) {
-      id += ('0x' + (uid[i] < 16 ? '0' : '') + uid[i].toString(16) + ' ');
-    }
-    console.log('Read UID:\t', id, '\ntimestamp:', time, '\n');
-  }
-}
+var rfid = require('../').use(tessel.port('A'));
 
 rfid.on('ready', function (version) {
-  console.log("\n\t\tReady to read RFID card\n");
+  console.log('Ready to read RFID card');
 
-  //  One way
-  rfid.setListening();
-  rfid.on('rfid-uid', function(uid) {
-    printUID(uid);
+  rfid.on('read', function(uid) {
+    console.log('UID:', uid);
   });
-
-  // //  Another way
-  // setInterval(function() {
-  //   rfid.readPassiveTargetID(0, function(err, uid) {
-  //     printUID(uid);
-  //   });
-  // }, 500);
 });
 ```
 
