@@ -28,7 +28,7 @@ var PN532_COMMAND_INDATAEXCHANGE = 0x40;  // jshint ignore:line
 var MIFARE_CMD_AUTH_A = 0x60;             // jshint ignore:line
 var MIFARE_CMD_AUTH_B = 0x61;             // jshint ignore:line
 
-function RFID (hardware, next) {
+function RFID (hardware, callback) {
   var self = this;
 
   self.hardware = hardware;
@@ -89,28 +89,28 @@ function RFID (hardware, next) {
     self.numListeners = 0;
     self.listening = false;
   });
-  if (next) {
-    next();
+  if (callback) {
+    callback();
   }
 }
 
 util.inherits(RFID, EventEmitter);
 
-RFID.prototype._initialize = function (hardware, next) {
+RFID.prototype._initialize = function (hardware, callback) {
   this._getFirmwareVersion(function (err, firmware) {
-    if(next) {
-      next(err, firmware);
+    if(callback) {
+      callback(err, firmware);
     }
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
 };
 
-RFID.prototype._getFirmwareVersion = function (next) {
+RFID.prototype._getFirmwareVersion = function (callback) {
   /*
   Ask the PN532 chip for its firmware version
 
   Args
-    next
+    callback
       Callback function; gets err, reply as args
   */
   var self = this;
@@ -130,7 +130,7 @@ RFID.prototype._getFirmwareVersion = function (next) {
       console.log('sendCommandCheckAck complete. err ack:', err, ack);
     }
     if (!ack) {
-      next(new Error('no ack'), null);
+      callback(new Error('no ack'), null);
     }
     else {
       if (DEBUG) {
@@ -141,15 +141,15 @@ RFID.prototype._getFirmwareVersion = function (next) {
           console.log('FIRMWARE: ', firmware);
           console.log('cleaned firmware: ', response);
         }
-        self._SAMConfig(next);
+        self._SAMConfig(callback);
       });
     }
   });
 };
 
-RFID.prototype.readPassiveTargetID = function (cardBaudRate, next) {
+RFID.prototype.readPassiveTargetID = function (cardBaudRate, callback) {
   /*
-  Passes the UID of the next ISO14443A target that is read to te callback
+  Passes the UID of the next ISO14443A target that is read to the callback
 
   Args
     cardBaudRate
