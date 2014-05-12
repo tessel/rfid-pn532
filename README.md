@@ -30,15 +30,15 @@ rfid.on('ready', function (version) {
 
 ##Methods
 
-*  **`rfid`.setPollPeriod(pollPeriod, callback(err))** Set the time in milliseconds between each check for an RFID device.
+##### * `rfid.setPollPeriod(pollPeriod, callback(err))` Set the time in milliseconds between each check for an RFID device.
 
 ##Events
 
-* *data* Emitted when data is available.
+##### * `rfid.on('data', callback(data))` Emitted when data is available.
 
-* *error* Emitted upon error.
+##### * `rfid.on('error', callback(err))` Emitted upon error.
 
-* *ready* Emitted upon first successful communication between the Tessel and the module.
+##### * `rfid.on('ready', callback())` Emitted upon first successful communication between the Tessel and the module.
 
 ## License
 MIT
