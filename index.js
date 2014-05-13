@@ -12,7 +12,7 @@
 
 //  todo: finish read mem, start anyting related to changing mem contents
 
-var DEBUG = 0; // 1 if debugging, 0 if not
+var DEBUG = 1; // 1 if debugging, 0 if not
 
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
@@ -67,7 +67,7 @@ function RFID (hardware, callback) {
           callback(err);
         }
       } else {
-        self.emit('ready', version);
+        self.emit('ready');
       }
     });
   }, WAKE_UP_TIME);
@@ -495,7 +495,7 @@ RFID.prototype._wireReadData = function (numBytes, callback) {
 RFID.prototype._wireReadStatus = function () {
   //  Check the status of the IRQ pin
   var x = this.irq.readSync();
-  if (x == 1) {
+  if (x === 1) {
     return PN532_I2C_BUSY;
   }
   else {
