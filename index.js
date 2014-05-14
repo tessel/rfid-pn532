@@ -112,14 +112,9 @@ RFID.prototype._checkAck = function (packet) {
   /*
   Verify that the packet is an ack packet.
   */
-  var successfulAck = [(0x0 || 0x1), 0x0, 0x0, 0xff, 0x0, 0xff]; // index 0 depends on direction of transfer
+  var successfulAck = [0x1, 0x0, 0x0, 0xff, 0x0, 0xff]; // index 0 depends on direction of transfer
 
-  //  option 1: ack packet
-  var isAck = true;
-  for (var i = 1; i < successfulAck.length; i++) {
-    isAck = isAck && (successfulAck[i] === packet[i]);
-  }
-  return isAck;
+  return successfulAck.reduce(function(prev, curr, i, arr){ return prev && (curr === packet[i]) });
 };
 
 RFID.prototype._checkPacket = function (packet) {
@@ -330,13 +325,6 @@ RFID.prototype._readRegisters = function (dataToWrite, bytesToRead, callback) {
   */
   var self = this;
 
-  var bufferToWrite = new Buffer(dataToWrite.length);
-  bufferToWrite.fill(0);
-  for (var i = 0; i < dataToWrite.length; i++) {
-    if (dataToWrite[i]) {
-      bufferToWrite[i] = dataToWrite[i];
-    }
-  }
   if (DEBUG) {
     var s = '[';
     for (i = 0; i < dataToWrite.length; i++) {
@@ -345,7 +333,7 @@ RFID.prototype._readRegisters = function (dataToWrite, bytesToRead, callback) {
     s = s.slice(0, s.length-2) + ']';
     console.log('\n\ttrying to read by sending:\n\t', s);
   }
-  self.i2c.transfer(bufferToWrite, bytesToRead, function (err, data) {
+  self.i2c.transfer(new Buffer(dataToWrite), bytesToRead, function (err, data) {
     if (DEBUG) {
       var s = '[';
       for (var i = 0; i < data.length; i++) {
@@ -494,7 +482,7 @@ RFID.prototype._wireReadData = function (numBytes, callback) {
 
 RFID.prototype._wireReadStatus = function () {
   //  Check the status of the IRQ pin
-  var x = this.irq.readSync();
+  var x = this.irq.read();
   if (x == 1) {
     return PN532_I2C_BUSY;
   }
@@ -550,13 +538,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
     callback
       Callback function; gets err, reply as args
   */
-  var bufferToWrite = new Buffer(dataToWrite.length);
-  bufferToWrite.fill(0);
-  for (var i = 0; i < dataToWrite.length; i++) {
-    if (dataToWrite[i]) {
-      bufferToWrite[i] = dataToWrite[i];
-    }
-  }
+
   if (DEBUG) {
     var s = '[';
     for (i = 0; i < dataToWrite.length; i++) {
@@ -566,7 +548,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
     console.log('\n\twriting buffer:\n\t', s, '\n');
   }
 
-  this.i2c.send(bufferToWrite, callback);
+  this.i2c.send(new Buffer(dataToWrite), callback);
 };
 
 // Set the time in milliseconds between each check for an RFID device
