@@ -17,3 +17,7 @@ rfid.on('ready', function (version) {
     console.log('UID:', uid);
   });
 });
+
+rfid.on('error', function (err) {
+  console.log(err)
+})

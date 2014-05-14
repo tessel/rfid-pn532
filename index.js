@@ -67,7 +67,7 @@ function RFID (hardware, callback) {
           callback(err);
         }
       } else {
-        self.emit('ready', version);
+        self.emit('ready');
       }
     });
   }, WAKE_UP_TIME);
@@ -483,7 +483,7 @@ RFID.prototype._wireReadData = function (numBytes, callback) {
 RFID.prototype._wireReadStatus = function () {
   //  Check the status of the IRQ pin
   var x = this.irq.read();
-  if (x == 1) {
+  if (x === 1) {
     return PN532_I2C_BUSY;
   }
   else {
