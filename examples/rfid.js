@@ -1,35 +1,23 @@
+/*********************************************
+This basic RFID example listens for an RFID
+device to come within range of the module,
+then logs its UID to the console.
+*********************************************/
+
+// Any copyright is dedicated to the Public Domain.
+// http://creativecommons.org/publicdomain/zero/1.0/
+
 var tessel = require('tessel');
-console.log('Connecting...');
-var rfid = require("../").connect(tessel.port("D"));
+var rfid = require('../').use(tessel.port('A')); // Replace '../' with 'rfid-pn532' in your own code
 
-var time = 0;
-var dt = 100;
-setInterval(function () { time += dt / 1000 }, dt);
+rfid.on('ready', function (version) {
+  console.log('Ready to read RFID card');
 
-var printUID = function(uid) {
-  if (uid) {
-    var id = '';
-    //  Format the UID nicely
-    for (var i = 0; i < uid.length; i++) {
-      id += ('0x' + (uid[i] < 16 ? '0' : '') + uid[i].toString(16) + ' ');
-    }
-    console.log('Read UID:\t', id, '\ntimestamp:', time, '\n');
-  }
-}
-
-rfid.on('connected', function (version) {
-  console.log("\n\t\tReady to read RFID card\n");
-
-  //  One way
-  rfid.setListening();
-  rfid.on('rfid-uid', function(uid) {
-    printUID(uid);
+  rfid.on('data', function(uid) {
+    console.log('UID:', uid);
   });
-
-  // //  Another way
-  // setInterval(function() {
-  //   rfid.readPassiveTargetID(0, function(err, uid) {
-  //     printUID(uid);
-  //   });
-  // }, 500);
 });
+
+rfid.on('error', function (err) {
+  console.log(err)
+})
