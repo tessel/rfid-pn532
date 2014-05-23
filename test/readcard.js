@@ -11,10 +11,10 @@ console.log('1..2');
 
 rfid.on('ready', function (version) {
   console.log('# ready to read RFID card');
-  console.log('ok')
+  console.log('ok');
 
   rfid.on('data', function(uid) {
-  	console.log('# uid', uid);
+    console.log('# uid', uid);
     console.log(uid.length == 4 ? 'ok' : 'not ok', '- length of returned data');
     rfid.disable();
   });
@@ -22,4 +22,4 @@ rfid.on('ready', function (version) {
 
 rfid.on('error', function (err) {
   console.log('not ok', '-', err);
-})
+});
