@@ -41,11 +41,12 @@ function RFID (hardware, callback) {
   var self = this;
 
   self.hardware = hardware;
-  self.irq = hardware.gpio(3);
-  self.irq.watch('fall', function () {
+  self.irq = hardware.digital[3];
+  self.irqcallback = function () {
     self.emit('irq', null, 0);
-  });
-  self.nRST = hardware.gpio(2);
+  };
+  self.irq.watch('fall', self.irqcallback);
+  self.nRST = hardware.digital[2];
 
   self.nRST.output();
   self.nRST.low(); // Toggle reset every time we initialize
@@ -426,7 +427,7 @@ RFID.prototype._startListening = function (callback) {
   self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
       self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
-        if (err === undefined && uid && uid.length) {
+        if (!err && uid && uid.length) {
           self.emit('data', uid);
         } else if (callback) {
           if (err) {
@@ -540,12 +541,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
   */
 
   if (DEBUG) {
-    var s = '[';
-    for (i = 0; i < dataToWrite.length; i++) {
-      s += '0x'+dataToWrite[i].toString(16) + ', ';
-    }
-    s = s.slice(0, s.length-2) + ']';
-    console.log('\n\twriting buffer:\n\t', s, '\n');
+    console.log('\n\twriting buffer:\n\t', dataToWrite, '\n');
   }
 
   this.i2c.send(new Buffer(dataToWrite), callback);
@@ -574,6 +570,11 @@ RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   } else {
     self._stopListening(self._startListening());
   }
+};
+
+RFID.prototype.disable = function () {
+  this.irq.cancelWatch('fall', this.irqcallback);
+  this._stopListening();
 };
 
 function use (hardware) {
