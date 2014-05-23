@@ -404,6 +404,9 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
     if (DEBUG) {
       console.log('kickback from readreg:\n', err, '\n', data);
     }
+    if (err) {
+      self.emit('error', new Error('Error reading register.'));
+    }
   });
 
   self.once('irq', function (err1, data) {
@@ -428,7 +431,7 @@ RFID.prototype._startListening = function (callback) {
     if (self.numListeners) {
       self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
         if (!err && uid && uid.length) {
-          self.emit('data', uid);
+          self.emit('data', uid.readUInt32BE(0));
         } else if (callback) {
           if (err) {
             self.emit('error', err);
