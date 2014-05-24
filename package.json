@@ -4,18 +4,13 @@
   "description": "Library to run the PN532 RFID Reader",
   "main": "index.js",
   "scripts": {
-    "test": "./testsuite.js"
+    "test": "tinytap -e 'tessel run {} ${RFID_PORT}' test/*.js"
   },
   "hardware": {
-    "./examples": false,
-    "tape": false,
-    "tap": false,
-    "shelljs": false
+    "./examples": false
   },
   "devDependencies": {
-    "tape": "~2.3.2",
-    "tap": "git+https://github.com/tcr/node-tap.git#3cb76e",
-    "shelljs": "~0.3.0"
+    "tinytap": "0.0.2"
   },
   "repository": "",
   "author": "Jon McKay <jon@technical.io>",
