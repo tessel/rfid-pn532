@@ -75,7 +75,7 @@ function RFID (hardware, callback) {
 
   // If we get a new listener
   self.on('newListener', function (event) {
-    if (event == 'data') {
+    if (event == 'data' || event == 'read') {
       // Add to the number of things listening
       self.numListeners += 1;
       // If we're not already listening
@@ -88,7 +88,7 @@ function RFID (hardware, callback) {
 
   // If we remove a listener
   self.on('removeListener', function (event) {
-    if (event == 'data') {
+    if (event == 'data' || event == 'read') {
       // Remove from the number of things listening
       self.numListeners -= 1;
       // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
@@ -431,7 +431,8 @@ RFID.prototype._startListening = function (callback) {
     if (self.numListeners) {
       self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
         if (!err && uid && uid.length) {
-          self.emit('data', uid.readUInt32BE(0));
+          self.emit('data', uid.toString('hex')); // streams1-like event
+          self.emit('read', uid.toString('hex')); // explicit read event
         } else if (callback) {
           if (err) {
             self.emit('error', err);

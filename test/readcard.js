@@ -13,9 +13,9 @@ rfid.on('ready', function (version) {
   console.log('# ready to read RFID card');
   console.log('ok');
 
-  rfid.on('data', function(uid) {
-    console.log('# uid', uid);
-    console.log(uid.length == 4 ? 'ok' : 'not ok', '- length of returned data');
+  rfid.on('read', function(uid) {
+    console.log('# uid:', uid);
+    console.log(uid.length == 8 ? 'ok' : 'not ok', '- length of returned data');
     rfid.disable();
   });
 });
