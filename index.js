@@ -42,9 +42,11 @@ function RFID (hardware, callback) {
 
   self.hardware = hardware;
   self.irq = hardware.digital[3];
+
   self.irqcallback = function () {
     self.emit('irq', null, 0);
   };
+
   self.irq.watch('fall', self.irqcallback);
   self.nRST = hardware.digital[2];
 
@@ -54,11 +56,9 @@ function RFID (hardware, callback) {
   self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
   self.i2c._initialize();
 
-  self.numListeners = 0;
   self.listeningLoop = null;
-  self.pollPeriod = 250;
+  self.pollPeriod = 200;
 
-  self.irq.input();
   setTimeout(function () {
     self.nRST.high();
     self._getFirmwareVersion(function (err, version) {
@@ -77,9 +77,7 @@ function RFID (hardware, callback) {
   self.on('newListener', function (event) {
     if (event == 'data' || event == 'read') {
       // Add to the number of things listening
-      self.numListeners += 1;
-      // If we're not already listening
-      if (!self.listeningLoop) {
+      if (EventEmitter.listenerCount(event) === 0) {
         // Start listening
         self._startListening();
       }
@@ -89,22 +87,11 @@ function RFID (hardware, callback) {
   // If we remove a listener
   self.on('removeListener', function (event) {
     if (event == 'data' || event == 'read') {
-      // Remove from the number of things listening
-      self.numListeners -= 1;
-      // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
-      if (self.numListeners < 1) {
-        self.listening = false;
+      if (EventEmitter.listenerCount(event) === 0) {
+        self._stopListening();
       }
     }
   });
-
-  self.on('removeAllListeners', function () {
-    self.numListeners = 0;
-    self.listeningLoop = null;
-  });
-  if (callback) {
-    callback(null, self);
-  }
 }
 
 util.inherits(RFID, EventEmitter);
@@ -302,7 +289,7 @@ RFID.prototype._read = function (cardBaudRate, callback) {
             }
           });
         }
-      }, 50);
+      }, self.pollPeriod);
     }
   });
 };
@@ -409,7 +396,7 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
     }
   });
 
-  self.once('irq', function (err1, data) {
+  self.irq.once('fall', function (err1, data) {
     if (err1 && callback) {
       callback(err1, data);
     }
@@ -427,36 +414,32 @@ RFID.prototype._startListening = function (callback) {
   //  Configure the module to automatically emit UIDs
   var self = this;
   // Loop until nothing is listening
-  self.listeningLoop = setInterval(function () {
-    if (self.numListeners) {
-      self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
-        if (!err && uid && uid.length) {
-          self.emit('data', uid.toString('hex')); // streams1-like event
-          self.emit('read', uid.toString('hex')); // explicit read event
-        } else if (callback) {
-          if (err) {
-            self.emit('error', err);
-            callback(err);
-            return;
-          }
-          err = new Error('No UID');
-          self.emit('error', err);
-          callback(err);
-          return;
-        }
-      });
-    } else {
-      if (callback) {
-        self._stopListening(callback);
-      } else {
-        self._stopListening();
-      }
-    }
-  }, self.pollPeriod);
+  self.listeningLoop = setInterval(self._attemptCardRead.bind(self) ,self.pollPeriod);
+
   if (callback) {
     callback();
   }
 };
+
+RFID.prototype._attemptCardRead = function() {
+  var self = this;
+  self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
+    if (!err && uid && uid.length) {
+      self.emit('data', uid.toString('hex')); // streams1-like event
+      self.emit('read', uid.toString('hex')); // explicit read event
+    } else if (callback) {
+      if (err) {
+        self.emit('error', err);
+        callback(err);
+        return;
+      }
+      err = new Error('No UID');
+      self.emit('error', err);
+      callback(err);
+      return;
+    }
+  });
+}
 
 RFID.prototype._stopListening = function (callback) {
   var self = this;
@@ -577,7 +560,7 @@ RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
 };
 
 RFID.prototype.disable = function () {
-  this.irq.cancelWatch('fall', this.irqcallback);
+  this.irq.cancelWatch('fall');
   this._stopListening();
 };
 
