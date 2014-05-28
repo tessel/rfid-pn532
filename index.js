@@ -45,7 +45,7 @@ function RFID (hardware, callback) {
   self.irqcallback = function () {
     self.emit('irq', null, 0);
   };
-  self.irq.watch('fall', self.irqcallback);
+  self.irq.on('fall', self.irqcallback);
   self.nRST = hardware.digital[1];
 
   self.nRST.output();
@@ -577,7 +577,7 @@ RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
 };
 
 RFID.prototype.disable = function () {
-  this.irq.cancelWatch('fall', this.irqcallback);
+  this.irq.removeListener('fall', this.irqcallback);
   this._stopListening();
 };
 
