@@ -41,12 +41,12 @@ function RFID (hardware, callback) {
   var self = this;
 
   self.hardware = hardware;
-  self.irq = hardware.digital[3];
+  self.irq = hardware.digital[2];
   self.irqcallback = function () {
     self.emit('irq', null, 0);
   };
   self.irq.watch('fall', self.irqcallback);
-  self.nRST = hardware.digital[2];
+  self.nRST = hardware.digital[1];
 
   self.nRST.output();
   self.nRST.low(); // Toggle reset every time we initialize
