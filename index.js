@@ -34,8 +34,18 @@ var PN532_HOSTTOPN532 = 0xD4;
 var PN532_MIFARE_ISO14443A = 0x00;
 var WAKE_UP_TIME = 100;
 var PN532_COMMAND_INDATAEXCHANGE = 0x40;  // jshint ignore:line
+
 var MIFARE_CMD_AUTH_A = 0x60;             // jshint ignore:line
 var MIFARE_CMD_AUTH_B = 0x61;             // jshint ignore:line
+var MIFARE_CMD_READ = 0x30;
+var MIFARE_CMD_WRITE = 0xA0;
+
+
+var DESFIRE_GETAPPLICATIONIDS = 0x6A
+var DESFIRE_SELECTAPPLICATION = 0x5A
+var DESFIRE_GETFILEIDS = 0x6F
+var DESFIRE_GETFILESETTINGS = 0xF5
+var DESFIRE_READDATA = 0xBD
 
 function RFID (hardware, callback) {
   var self = this;
@@ -209,7 +219,7 @@ RFID.prototype._getUID = function (cardBaudRate, callback) {
   var self = this;
   self._read(cardBaudRate, function (err, card) {
     if (card && callback) {
-      callback(err, card.uid || null);
+      callback(err, card || null);
     }
   });
 };
@@ -229,6 +239,257 @@ RFID.prototype._initialize = function (hardware, callback) {
     }
   });
   // TODO: Do something with the bank to determine the IRQ and RESET lines
+};
+
+RFID.prototype.desfireGetApplicationIds = function (callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    DESFIRE_GETAPPLICATIONIDS
+  ];
+
+  self._sendCommandCheckAck(commandBuffer, function(err, ack) {
+    if (err || !ack){
+      if (callback) {
+        callback(err, ack);
+      }
+    } else{
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            console.log("Application ID return:",res);
+          });
+        }
+      }, 50);
+    }
+  });
+};
+
+RFID.prototype.desfireSelectApplication = function(appId, callback){
+  var self = this;
+
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    DESFIRE_SELECTAPPLICATION
+  ].concat(appId);
+
+  self._sendCommandCheckAck(commandBuffer, function(err, ack) {
+    if (err || !ack){
+      if (callback) {
+        callback(err, ack);
+      }
+    } else{
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            console.log("Application select return:",res);
+            if (callback) {
+              callback(null);
+            }
+          });
+        }
+      }, 50);
+    }
+  });
+};
+
+RFID.prototype.desfireGetFileIds = function () {
+  var self = this;
+
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    DESFIRE_GETFILEIDS
+  ];
+
+  self._sendCommandCheckAck(commandBuffer, function(err, ack) {
+    if (err || !ack){
+      if (callback) {
+        callback(err, ack);
+      }
+    } else{
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            console.log("File IDs return:",res);
+          });
+        }
+      }, 50);
+    }
+  });
+};
+
+RFID.prototype.desfireGetFileSettings = function (fileId) {
+    var self = this;
+
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    DESFIRE_GETFILESETTINGS,
+    fileId
+  ];
+
+  self._sendCommandCheckAck(commandBuffer, function(err, ack) {
+    if (err || !ack){
+      if (callback) {
+        callback(err, ack);
+      }
+    } else{
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            console.log("File IDs return:",res);
+          });
+        }
+      }, 50);
+    }
+  });
+}
+
+RFID.prototype.classicIsFirstBlock = function (uiBlock) {
+  if (uiblock < 128) {
+    return (uiBlock % 4 == 0);
+  } else {
+    return (uiBlock % 16 == 0);
+  }
+};
+
+RFID.prototype.classicIsTrailerBlock = function (uiBlock) {
+  if (uiblock < 128) {
+    return ((uiBlock + 1) % 4 == 0);
+  } else {
+    return ((uiBlock + 1) % 16 == 0);
+  }
+};
+
+RFID.prototype.classicAuthenticateBlock = function( uid, blockNumber, keyNumber, keyData, callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    keyNumber ? MIFARE_CMD_AUTH_B : MIFARE_CMD_AUTH_A,
+    blockNumber
+  ].concat(keyData).concat(uid);
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        callback(err, ack);
+      }
+    } else {
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err && res[8] == 0x00) {
+              if (callback) {
+                callback(err, res);
+              }
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
+};
+
+RFID.prototype.classicReadDataBlock = function (blockNumber, callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    MIFARE_CMD_READ,
+    blockNumber
+  ];
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        console.log("Ack error",err);
+        callback(err, ack);
+      }
+    } else {
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err && res[8] == 0x00) {
+              console.log("Data read", res.slice(9,9+16));
+              if (callback){
+                callback(err, res);
+              }
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
+
+};
+
+RFID.prototype.classicWriteDataBlock = function (blockNumber, data, callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    MIFARE_CMD_WRITE,
+    blockNumber
+  ].concat(data);
+
+  console.log("Command buffer", commandBuffer);
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        callback(err, ack);
+      }
+    } else {
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err) {
+              if (callback){
+                callback(err, res);
+              }
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
 };
 
 RFID.prototype._read = function (cardBaudRate, callback) {
@@ -291,7 +552,7 @@ RFID.prototype._read = function (cardBaudRate, callback) {
         if (self._wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
-          var dataLength = 20;
+          var dataLength = 32;
           self._wireReadData(dataLength, function (err, res) {
             if (!err && self._checkPacket(res)) {
               parseCard(err, res);
@@ -429,10 +690,10 @@ RFID.prototype._startListening = function (callback) {
   // Loop until nothing is listening
   self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
-      self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
-        if (!err && uid && uid.length) {
-          self.emit('data', uid.toString('hex')); // streams1-like event
-          self.emit('read', uid.toString('hex')); // explicit read event
+      self._getUID(PN532_MIFARE_ISO14443A, function (err, card) {
+        if (!err && card) {
+          self.emit('data', card); // streams1-like event
+          self.emit('read', card); // explicit read event
         } else if (callback) {
           if (err) {
             self.emit('error', err);
@@ -554,7 +815,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
 // Set the time in milliseconds between each check for an RFID device
 RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   var self = this;
-  if (NaN(pollPeriod)) {
+  if (isNaN(pollPeriod)) {
     if (callback) {
       err = new Error('NaN');
       callback(err);
