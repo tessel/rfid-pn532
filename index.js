@@ -639,8 +639,6 @@ RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) 
     blockNumber
   ].concat(data);
 
-  console.log("Command buffer", commandBuffer);
-
   self._sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (err || !ack) {
       if (callback) {
