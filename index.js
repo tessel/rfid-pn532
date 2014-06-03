@@ -825,15 +825,19 @@ RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   }
   this.pollPeriod = pollPeriod;
   if (callback) {
-    self._stopListening(self._startListening(function (err) {
-      if (err) {
+    self._stopListening(function (err) {
+      self._startListening(function (err) {
+        if (err) {
         callback(err);
         return;
       }
       callback();
-    }));
+      });
+    });
   } else {
-    self._stopListening(self._startListening());
+    self._stopListening(function(err) {
+      self._startListening()
+    });
   }
 };
 
