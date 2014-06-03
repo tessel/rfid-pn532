@@ -1,0 +1,94 @@
+// Any copyright is dedicated to the Public Domain.
+// http://creativecommons.org/publicdomain/zero/1.0/
+
+var tessel = require('tessel');
+var rfid = require('../').use(tessel.port['A']);
+
+
+rfid.on('ready', function (version) {
+
+  console.log('Ready to read RFID card');
+  
+  rfid.on('read', function(card) {
+    console.log('Card found!');
+    console.log('uid:', card.uid);
+    console.log("Start auth #1");
+
+
+    var addr = 0x04; // Block address we will write to
+    var auth_key = [0xff,0xff,0xff,0xff,0xff,0xff]; // Authentication key for data block
+    var new_data = [0xa1,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7,0xa8,0xa9,0xaa,0xab,0xac,0xad,0xae,0xaf,0xff]; // New data to write to block
+    var authType = 0; // Authorization type - 0 for A, 1 for B - A is the most common
+
+    rfid.setPollPeriod(1000*60*60, function(err) { // Set the poll period to give us enough time to run read/write commands without interference
+    
+      var afterAuth1 = function(err){
+        if (err) {
+          console.log("Auth error", err);
+          rfid.setPollPeriod(250);
+        } else {
+          console.log("Read old data");
+          rfid.mifareClassicReadBlock(addr, afterRead1) // Read the existing data in the block
+        }
+      };
+
+      var afterRead1 = function(err, data){
+        if (err) {
+          console.log("Read error", err);
+          rfid.setPollPeriod(250);
+        } else {
+          console.log("Old data", data);
+          console.log("Start auth #2");
+          rfid.mifareClassicAuthenticateBlock(card.uid,addr,authType,auth_key,afterAuth2); // Just in case the previous auth has timed out
+        }
+      };
+
+      var afterAuth2 = function(err){
+        if (err) {
+          console.log("Auth error", err);
+          rfid.setPollPeriod(250);
+        } else {
+          console.log('Write new data');
+          rfid.mifareClassicWriteBlock(addr, new_data, afterWrite); // Write the new data to the block
+        }
+      };
+
+      var afterWrite = function(err) {
+        if (err){
+          console.log("Write error", err);
+          rfid.setPollPeriod(250);
+        } else {
+          console.log("Start auth #3");
+          rfid.mifareClassicAuthenticateBlock(card.uid,addr,authType,auth_key,afterAuth3); // Just in case the previous auth has timed out
+        }
+      };
+
+      var afterAuth3 = function(err){
+        if (err){
+          console.log("Auth error", err);
+          rfid.setPollPeriod(250);
+        } else {
+          console.log("Read new data");
+          rfid.mifareClassicReadBlock(addr, afterRead2); // Read back the new data we just wrote to the block
+        }
+      };
+
+      var afterRead2 = function(err, data){
+        if (err) {
+          console.log("Read error", err);
+          rfid.setPollPeriod(250);
+        } else {
+          console.log("New data", data);
+          rfid.setPollPeriod(250);  // Reset the poll period to start listening for other cards
+        }
+      };
+         
+      rfid.mifareClassicAuthenticateBlock(card.uid,addr,authType,auth_key,afterAuth1); // Authenticate our block for read/write operations
+
+    });
+  });
+});
+
+rfid.on('error', function (err) {
+  console.log(err);
+});
