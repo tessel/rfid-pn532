@@ -554,6 +554,121 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
   this.i2c.send(new Buffer(dataToWrite), callback);
 };
 
+RFID.prototype.mifareClassicAuthenticateBlock = function( uid, blockNumber, keyNumber, keyData, callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    keyNumber ? MIFARE_CMD_AUTH_B : MIFARE_CMD_AUTH_A,
+    blockNumber
+  ].concat(keyData).concat(uid);
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        callback(err, ack);
+      }
+    } else {
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err && res[8] == 0x00) {
+              if (callback) {
+                callback(err);
+              }
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
+};
+
+RFID.prototype.mifareClassicReadBlock = function (blockNumber, callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    MIFARE_CMD_READ,
+    blockNumber
+  ];
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        console.log("Ack error",err);
+        callback(err, ack);
+      }
+    } else {
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err && res[8] == 0x00) {
+              if (callback){
+                callback(err, res.slice(9,9+16));
+              }
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
+
+};
+
+RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) {
+  var self = this;
+  var commandBuffer = [
+    PN532_COMMAND_INDATAEXCHANGE,
+    1,
+    MIFARE_CMD_WRITE,
+    blockNumber
+  ].concat(data);
+
+  console.log("Command buffer", commandBuffer);
+
+  self._sendCommandCheckAck(commandBuffer, function (err, ack) {
+    if (err || !ack) {
+      if (callback) {
+        callback(err, ack);
+      }
+    } else {
+      var waitLoop = setInterval(function () {
+        if (self._wireReadStatus() === PN532_I2C_READY) {
+          clearInterval(waitLoop);
+          // read data packet
+          var dataLength = 26;
+          self._wireReadData(dataLength, function (err, res) {
+            if (!err) {
+              if (callback){
+                callback(err);
+              }
+            } else {
+              if (callback) {
+                callback(err || new Error('invalid packet'), res);
+              }
+            }
+          });
+        }
+      }, 50);
+    }
+  });
+};
+
 // Set the time in milliseconds between each check for an RFID device
 RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   var self = this;
