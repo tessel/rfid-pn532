@@ -20,22 +20,25 @@ var EventEmitter = require('events').EventEmitter;
 var PN532_COMMAND_INLISTPASSIVETARGET = 0x4A;
 var PN532_COMMAND_GETFIRMWAREVERSION = 0x02;
 var PN532_COMMAND_SAMCONFIGURATION = 0x14;
+var PN532_COMMAND_INDATAEXCHANGE = 0x40;
 var PN532_I2C_READY = 0x01;
 var PN532_PREAMBLE = 0x00;
-var PN532_STARTCODE1 = 0x00;              // jshint ignore:line
+var PN532_STARTCODE1 = 0x00;
 var PN532_STARTCODE2 = 0xFF;
 var PN532_POSTAMBLE = 0x00;
 var PN532_I2C_ADDRESS = 0x48 >> 1;
-var PN532_I2C_READBIT = 0x01;             // jshint ignore:line
+var PN532_I2C_READBIT = 0x01;
 var PN532_I2C_BUSY = 0x00;
 var PN532_I2C_READY = 0x01;
-var PN532_I2C_READYTIMEOUT = 20;          // jshint ignore:line
+var PN532_I2C_READYTIMEOUT = 20;
 var PN532_HOSTTOPN532 = 0xD4;
 var PN532_MIFARE_ISO14443A = 0x00;
 var WAKE_UP_TIME = 100;
-var PN532_COMMAND_INDATAEXCHANGE = 0x40;  // jshint ignore:line
-var MIFARE_CMD_AUTH_A = 0x60;             // jshint ignore:line
-var MIFARE_CMD_AUTH_B = 0x61;             // jshint ignore:line
+
+var MIFARE_CMD_AUTH_A = 0x60;
+var MIFARE_CMD_AUTH_B = 0x61;
+var MIFARE_CMD_READ = 0x30;
+var MIFARE_CMD_WRITE = 0xA0;
 
 function RFID (hardware, callback) {
   var self = this;
@@ -554,7 +557,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
 // Set the time in milliseconds between each check for an RFID device
 RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   var self = this;
-  if (NaN(pollPeriod)) {
+  if (isNaN(pollPeriod)) {
     if (callback) {
       err = new Error('NaN');
       callback(err);
@@ -564,15 +567,19 @@ RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   }
   this.pollPeriod = pollPeriod;
   if (callback) {
-    self._stopListening(self._startListening(function (err) {
-      if (err) {
+    self._stopListening(function (err) {
+      self._startListening(function (err) {
+        if (err) {
         callback(err);
         return;
       }
       callback();
-    }));
+      });
+    });
   } else {
-    self._stopListening(self._startListening());
+    self._stopListening(function(err) {
+      self._startListening()
+    });
   }
 };
 
