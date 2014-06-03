@@ -199,9 +199,9 @@ RFID.prototype._getFirmwareVersion = function (callback) {
   });
 };
 
-RFID.prototype._getUID = function (cardBaudRate, callback) {
+RFID.prototype._getCard = function (cardBaudRate, callback) {
   /*
-  Passes the UID of the next ISO14443A target that is read to the callback
+  Passes the information of the next ISO14443A target that is read to the callback
 
   Args
     cardBaudRate
@@ -212,7 +212,7 @@ RFID.prototype._getUID = function (cardBaudRate, callback) {
   var self = this;
   self._read(cardBaudRate, function (err, card) {
     if (card && callback) {
-      callback(err, card.uid || null);
+      callback(err, card);
     }
   });
 };
@@ -432,10 +432,10 @@ RFID.prototype._startListening = function (callback) {
   // Loop until nothing is listening
   self.listeningLoop = setInterval(function () {
     if (self.numListeners) {
-      self._getUID(PN532_MIFARE_ISO14443A, function (err, uid) {
-        if (!err && uid && uid.length) {
-          self.emit('data', uid.toString('hex')); // streams1-like event
-          self.emit('read', uid.toString('hex')); // explicit read event
+      self._getCard(PN532_MIFARE_ISO14443A, function (err, card) {
+        if (!err && card && card.uid) {
+          self.emit('data', card); // streams1-like event
+          self.emit('read', card); // explicit read event
         } else if (callback) {
           if (err) {
             self.emit('error', err);
