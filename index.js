@@ -275,13 +275,13 @@ RFID.prototype._read = function (cardBaudRate, callback) {
 
         var Card = {};
         res = res.slice(1); // cut off the read/write direction bit
-        Card.header = res.slice(0, 7);                // Frame header & preamble
-        Card.numTags = res[7];                        // Tags found
-        Card.tagNum = res[8];                         // Tag number
-        Card.SENS_RES = res.slice(9, 11);             // SENS_RES
-        Card.SEL_RES = res[11];                       // SEL_RES
-        Card.idLength = res[12];                      // NFCID Length
-        Card.uid = res.slice(13, 13 + Card.idLength); // NFCID
+        Card.header = [].slice.apply(res.slice(0, 7));                // Frame header & preamble
+        Card.numTags = res[7];                                        // Tags found
+        Card.tagNum = res[8];                                         // Tag number
+        Card.SENS_RES = [].slice.apply(res.slice(9, 11));             // SENS_RES
+        Card.SEL_RES = res[11];                                       // SEL_RES
+        Card.idLength = res[12];                                      // NFCID Length
+        Card.uid = [].slice.apply(res.slice(13, 13 + Card.idLength)); // NFCID
 
         if (DEBUG) {
           console.log('Parsed card:\n', Card);
