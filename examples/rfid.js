@@ -8,8 +8,9 @@ then logs its UID to the console.
 *********************************************/
 
 var tessel = require('tessel');
+var rfidlib = require('../');// Replace '../' with 'rfid-pn532' in your own code
 
-var rfid = require('../').use(tessel.port['A']); // Replace '../' with 'rfid-pn532' in your own code
+var rfid = rfidlib.use(tessel.port['A']); 
 
 rfid.on('ready', function (version) {
   console.log('Ready to read RFID card');
