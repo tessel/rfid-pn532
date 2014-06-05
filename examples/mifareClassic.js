@@ -1,6 +1,15 @@
 // Any copyright is dedicated to the Public Domain.
 // http://creativecommons.org/publicdomain/zero/1.0/
 
+/*********************************************
+This example authorizes a mifare classic for 
+read/write operations. First it will read a 
+block of data off the card, write new data 
+over the block, and then read back the data 
+on the card to verify that the data on the 
+card has changed.
+*********************************************/
+
 var tessel = require('tessel');
 var rfid = require('../').use(tessel.port['A']);
 
