@@ -41,7 +41,6 @@ rfid.on('ready', function (version) {
 [#] rfid.mifareClassicWriteBlock(blockNumber, data, callback(err)) Write a block of memory on a MIFARE classic card. `blockNumber` is the address of the block to write. `data` is an array containing the 16 bytes of data to write to the block.
 
 ##Events
-=======
 &#x20;<a href="#api-rfid-on-data-callback-data-Emitted-when-data-is-available" name="api-rfid-on-data-callback-data-Emitted-when-data-is-available">#</a> rfid<b>.on</b>( 'data', callback(data) ) Emitted when data is available.  
 >>>>>>> Updates readme to current style syntax, updates example import syntax
 
@@ -57,4 +56,3 @@ Implement commands for additional NFC card types
 
 ###License
 MIT or Apache 2.0, at your option
-
