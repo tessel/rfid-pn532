@@ -554,7 +554,7 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
 // Set the time in milliseconds between each check for an RFID device
 RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
   var self = this;
-  if (NaN(pollPeriod)) {
+  if (isNaN(pollPeriod)) {
     if (callback) {
       err = new Error('NaN');
       callback(err);
