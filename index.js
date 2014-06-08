@@ -291,7 +291,7 @@ RFID.prototype._read = function (cardBaudRate, callback) {
         if (self._wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
-          var dataLength = 20;
+          var dataLength = 32;
           self._wireReadData(dataLength, function (err, res) {
             if (!err && self._checkPacket(res)) {
               parseCard(err, res);
