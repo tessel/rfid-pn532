@@ -23,8 +23,8 @@ var rfid = rfidlib.use(tessel.port['A']);
 rfid.on('ready', function (version) {
   console.log('Ready to read RFID card');
 
-  rfid.on('data', function(uid) {
-    console.log('UID:', uid);
+  rfid.on('data', function(card) {
+    console.log('UID:', card.uidStr);
   });
 });
 ```
@@ -43,6 +43,8 @@ rfid.on('ready', function (version) {
 &#x20;<a href="#api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err-Write-a-block-of-memory-on-a-MIFARE-classic-card-blockNumber-is-the-address-of-the-block-to-write-data-is-an-array-containing-the-16-bytes-of-data-to-write-to-the-block" name="api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err-Write-a-block-of-memory-on-a-MIFARE-classic-card-blockNumber-is-the-address-of-the-block-to-write-data-is-an-array-containing-the-16-bytes-of-data-to-write-to-the-block">#</a> rfid<b>.mifareClassicWriteBlock</b>( blockNumber, data, callback(err) )  
  Write a block of memory on a MIFARE classic card. blockNumber is the address of the block to write. data is an array containing the 16 bytes of data to write to the block.  
 
+##### * `rfid.startListening(callback(err))` Tell the RFID module to start listening for cards. Only necessary when configuring the module for manual card reading.
+
 ##Events
 &#x20;<a href="#api-rfid-on-data-callback-data-Emitted-when-data-is-available" name="api-rfid-on-data-callback-data-Emitted-when-data-is-available">#</a> rfid<b>.on</b>( 'data', callback(data) )  
  Emitted when data is available.  
@@ -56,7 +58,20 @@ rfid.on('ready', function (version) {
 ###Further Examples  
 * [Mifare Classic](link to example for this in the "examples" folder). This example authorizes a mifare classic for read/write operations. First it will read a block of data off the card, write new data over the block, and then read back the data on the card to verify that the data on the card has changed.
 
-###TODO
+###Configuration
+You can optionally configure the way the RFID module listens for cards. The supported options are `read` and `delay`. Set read to `true` to enable automatic reading of cards, or to `false` to manually control when the module should read cards. The default for this option is `true`. The `delay` option is used to set the amount of time in milliseconds to wait after reading a card to start listening again. The `delay` option is ignored when `read` is set to `false`.
+```js
+var tessel = require('tessel');
+var rfid = require('rfid-pn532').use(
+  tessel.port['A'],
+  {
+    read: true, 
+    delay: 500
+  }
+);
+```
+
+##TODO
 Implement commands for additional NFC card types
 
 ###License
