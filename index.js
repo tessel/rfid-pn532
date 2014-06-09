@@ -528,6 +528,9 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
 
 RFID.prototype.mifareClassicAuthenticateBlock = function( uid, blockNumber, keyNumber, keyData, callback) {
   var self = this;
+  if (Buffer.isBuffer(uid)) {
+    uid = [].slice.apply(uid);
+  }
   var commandBuffer = [
     PN532_COMMAND_INDATAEXCHANGE,
     1,
