@@ -5,7 +5,7 @@ var portname = process.argv[2] || 'A';
 console.log('# connecting to port', portname);
 
 var tessel = require('tessel');
-var rfid = require('../').use(tessel.port[portname]);
+var rfid = require('../').use(tessel.port[portname], {read: true, delay: 0});
 
 console.log('1..2');
 
@@ -13,10 +13,10 @@ rfid.on('ready', function (version) {
   console.log('# ready to read RFID card');
   console.log('ok');
 
-  rfid.on('read', function(uid) {
-    console.log('# uid:', uid);
-    console.log(uid.length == 8 ? 'ok' : 'not ok', '- length of returned data');
-    rfid.disable();
+  rfid.on('read', function(data) {
+    console.log('# uid:', data.uidStr);
+    console.log(data.uid.length == 7 ? 'ok' : 'not ok', '- length of returned data');
+    // rfid.disable();
   });
 });
 
