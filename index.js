@@ -40,8 +40,13 @@ var MIFARE_CMD_AUTH_B = 0x61;
 var MIFARE_CMD_READ = 0x30;
 var MIFARE_CMD_WRITE = 0xA0;
 
-function RFID (hardware, callback) {
+function RFID (hardware, options, callback) {
   var self = this;
+
+  if (typeof options == 'function') {
+    callback = options;
+    options = {};
+  }
 
   self.hardware = hardware;
   self.irq = hardware.digital[2];
@@ -58,8 +63,18 @@ function RFID (hardware, callback) {
   self.i2c._initialize();
 
   self.numListeners = 0;
-  self.listeningLoop = null;
-  self.pollPeriod = 250;
+  self.listening = false;
+
+  self.autoReset = true;
+  self.resetTimeout = 500;
+  if (options) {
+    if (options.hasOwnProperty('listen')) {
+      self.autoReset = options.listen;
+    }
+    if (options.hasOwnProperty('delay')){
+      self.resetTimeout = options.delay;
+    }
+  }
 
   self.irq.input();
   setTimeout(function () {
@@ -82,9 +97,9 @@ function RFID (hardware, callback) {
       // Add to the number of things listening
       self.numListeners += 1;
       // If we're not already listening
-      if (!self.listeningLoop) {
+      if (!self.listening) {
         // Start listening
-        self._startListening();
+        self.startListening();
       }
     }
   });
@@ -103,7 +118,6 @@ function RFID (hardware, callback) {
 
   self.on('removeAllListeners', function () {
     self.numListeners = 0;
-    self.listeningLoop = null;
   });
   if (callback) {
     callback(null, self);
@@ -281,17 +295,26 @@ RFID.prototype._read = function (cardBaudRate, callback) {
         Card.SENS_RES = [].slice.apply(res.slice(9, 11));             // SENS_RES
         Card.SEL_RES = res[11];                                       // SEL_RES
         Card.idLength = res[12];                                      // NFCID Length
-        Card.uid = [].slice.apply(res.slice(13, 13 + Card.idLength)); // NFCID
-
+        Card.uid = res.slice(13, 13 + Card.idLength);                 // NFCID buffer
+ 
         if (DEBUG) {
           console.log('Parsed card:\n', Card);
         }
         if (callback) {
-          callback(err, Card);
+          if (!self.listening){
+            callback(new Error('Listening terminated'));
+          } else{
+            callback(err, Card);
+          }
         }
       };
       var waitLoop = setInterval(function () {
-        if (self._wireReadStatus() === PN532_I2C_READY) {
+        if (!self.listening){
+          clearInterval(waitLoop);
+          if (callback){
+            callback(new Error('Listening terminated'));
+          }
+        } else if (self._wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
           var dataLength = 32;
@@ -426,50 +449,6 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
   });
 };
 
-RFID.prototype._startListening = function (callback) {
-  //  Configure the module to automatically emit UIDs
-  var self = this;
-  // Loop until nothing is listening
-  self.listeningLoop = setInterval(function () {
-    if (self.numListeners) {
-      self._getCard(PN532_MIFARE_ISO14443A, function (err, card) {
-        if (!err && card && card.uid) {
-          self.emit('data', card); // streams1-like event
-          self.emit('read', card); // explicit read event
-        } else if (callback) {
-          if (err) {
-            self.emit('error', err);
-            callback(err);
-            return;
-          }
-          err = new Error('No UID');
-          self.emit('error', err);
-          callback(err);
-          return;
-        }
-      });
-    } else {
-      if (callback) {
-        self._stopListening(callback);
-      } else {
-        self._stopListening();
-      }
-    }
-  }, self.pollPeriod);
-  if (callback) {
-    callback();
-  }
-};
-
-RFID.prototype._stopListening = function (callback) {
-  var self = this;
-  clearInterval(self.listeningLoop);
-  self.listeningLoop = null;
-  if (callback) {
-    callback();
-  }
-};
-
 RFID.prototype._wireReadData = function (numBytes, callback) {
   /*
   Read in numBytes of data (0-63) from the PN532's I2C buffer
@@ -556,6 +535,9 @@ RFID.prototype._writeRegister = function (dataToWrite, callback) {
 
 RFID.prototype.mifareClassicAuthenticateBlock = function( uid, blockNumber, keyNumber, keyData, callback) {
   var self = this;
+  if (Buffer.isBuffer(uid)) {
+    uid = [].slice.apply(uid);
+  }
   var commandBuffer = [
     PN532_COMMAND_INDATAEXCHANGE,
     1,
@@ -667,42 +649,56 @@ RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) 
   });
 };
 
-// Set the time in milliseconds between each check for an RFID device
-RFID.prototype.setPollPeriod = function (pollPeriod, callback) {
+RFID.prototype.startListening = function (callback) {
+  //  Configure the module to automatically emit UIDs
   var self = this;
-  if (isNaN(pollPeriod)) {
-    if (callback) {
-      err = new Error('NaN');
-      callback(err);
-      self.emit('error', err);
-    }
-    return;
-  }
-  this.pollPeriod = pollPeriod;
-  if (callback) {
-    self._stopListening(function (err) {
-      self._startListening(function (err) {
+  self.listening = true;
+  // Loop until nothing is listening
+  if (self.numListeners) {
+    self._getCard(PN532_MIFARE_ISO14443A, function (err, card) {
+      if (!err && card && card.uid && self.listening) {
+        self.emit('data', card); // streams1-like event
+        self.emit('read', card); // explicit read event
+      } else if (callback) {
         if (err) {
+          self.emit('error', err);
+          callback(err);
+          return;
+        }
+        err = new Error('No UID');
+        self.emit('error', err);
         callback(err);
         return;
       }
-      callback();
-      });
+      if (self.autoReset && self.listening) {
+        setTimeout(self.startListening.bind(self), self.resetTimeout);
+      }
     });
   } else {
-    self._stopListening(function(err) {
-      self._startListening()
-    });
+    if (callback) {
+      self.stopListening(callback);
+    } else {
+      self.stopListening();
+    }
+  }
+};
+
+RFID.prototype.stopListening = function (callback) {
+  var self = this;
+  self.listening = false;
+  self.autoReset = false;
+  if (callback) {
+    callback();
   }
 };
 
 RFID.prototype.disable = function () {
   this.irq.removeListener('fall', this.irqcallback);
-  this._stopListening();
+  this.stopListening();
 };
 
-function use (hardware) {
-  return new RFID(hardware);
+function use (hardware, options, callback) {
+  return new RFID(hardware, options, callback);
 }
 
 exports.RFID = RFID;
