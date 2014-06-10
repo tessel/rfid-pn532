@@ -63,7 +63,7 @@ function RFID (hardware, options, callback) {
   self.i2c._initialize();
 
   self.numListeners = 0;
-  self.listeningLoop = null;
+  self.listening = false;
 
   self.autoReset = true;
   self.resetTimeout = 500;
@@ -97,7 +97,7 @@ function RFID (hardware, options, callback) {
       // Add to the number of things listening
       self.numListeners += 1;
       // If we're not already listening
-      if (!self.listeningLoop) {
+      if (!self.listening) {
         // Start listening
         self.startListening();
       }
@@ -118,7 +118,6 @@ function RFID (hardware, options, callback) {
 
   self.on('removeAllListeners', function () {
     self.numListeners = 0;
-    self.listeningLoop = null;
   });
   if (callback) {
     callback(null, self);
@@ -307,6 +306,12 @@ RFID.prototype._read = function (cardBaudRate, callback) {
         }
       };
       var waitLoop = setInterval(function () {
+        if (!self.listening){
+          clearInterval(waitLoop);
+          if (callback){
+            callback(new Error('Listening terminated'));
+          }
+        }
         if (self._wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
@@ -645,6 +650,7 @@ RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) 
 RFID.prototype.startListening = function (callback) {
   //  Configure the module to automatically emit UIDs
   var self = this;
+  self.listening = true;
   // Loop until nothing is listening
   if (self.numListeners) {
     self._getCard(PN532_MIFARE_ISO14443A, function (err, card) {
@@ -662,8 +668,7 @@ RFID.prototype.startListening = function (callback) {
         callback(err);
         return;
       }
-      self.listeningLoop = null;
-      if (self.autoReset) {
+      if (self.autoReset && self.listening) {
         setTimeout(self.startListening.bind(self), self.resetTimeout);
       }
     });
@@ -678,8 +683,7 @@ RFID.prototype.startListening = function (callback) {
 
 RFID.prototype.stopListening = function (callback) {
   var self = this;
-  clearInterval(self.listeningLoop);
-  self.listeningLoop = null;
+  self.listening = false;
   if (callback) {
     callback();
   }
