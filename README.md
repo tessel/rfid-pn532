@@ -21,10 +21,10 @@ var rfidlib = require('rfid-pn532');
 var rfid = rfidlib.use(tessel.port['A']); 
 
 rfid.on('ready', function (version) {
-  console.log('Ready to read RFID card');
+  console.log('Ready to read RFID tag');
 
-  rfid.on('data', function(card) {
-    console.log('UID:', card.uidStr);
+  rfid.on('data', function(tag) {
+    console.log('UID:', tag.uidStr);
   });
 });
 ```
@@ -43,7 +43,9 @@ rfid.on('ready', function (version) {
 &#x20;<a href="#api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err-Write-a-block-of-memory-on-a-MIFARE-classic-card-blockNumber-is-the-address-of-the-block-to-write-data-is-an-array-containing-the-16-bytes-of-data-to-write-to-the-block" name="api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err-Write-a-block-of-memory-on-a-MIFARE-classic-card-blockNumber-is-the-address-of-the-block-to-write-data-is-an-array-containing-the-16-bytes-of-data-to-write-to-the-block">#</a> rfid<b>.mifareClassicWriteBlock</b>( blockNumber, data, callback(err) )  
  Write a block of memory on a MIFARE classic card. blockNumber is the address of the block to write. data is an array containing the 16 bytes of data to write to the block.  
 
-##### * `rfid.startListening(callback(err))` Tell the RFID module to start listening for cards. Only necessary when configuring the module for manual card reading.
+##### * `rfid.startListening(callback(err))` Tell the RFID module to start listening for tags. Only necessary when configuring the module for manual tag reading.
+
+##### * `rfid.stopListening(callback())` Tell the RFID module to stop listening for tags. This will also disable automatic listening for tags.
 
 ##Events
 &#x20;<a href="#api-rfid-on-data-callback-data-Emitted-when-data-is-available" name="api-rfid-on-data-callback-data-Emitted-when-data-is-available">#</a> rfid<b>.on</b>( 'data', callback(data) )  
@@ -59,7 +61,7 @@ rfid.on('ready', function (version) {
 * [Mifare Classic](link to example for this in the "examples" folder). This example authorizes a mifare classic for read/write operations. First it will read a block of data off the card, write new data over the block, and then read back the data on the card to verify that the data on the card has changed.
 
 ###Configuration
-You can optionally configure how the RFID module listens for cards with an options argument in the `.use()` method. The supported options are `listen` and `delay`. Set `listen` to `true` to automatically listen for cards coming in range, or to `false` to manually control when the module should read cards. The default for this option is `true`. The `delay` option is used to set the amount of time in milliseconds to wait after reading a card to start listening again. The default for `delay` is 500 milliseconds. This option is ignored when `listen` is set to `false`.
+You can optionally configure how the RFID module listens for tags with an options argument in the `.use()` method. The supported options are `listen` and `delay`. Set `listen` to `true` to automatically listen for tags coming in range, or to `false` to manually control when the module should read tags. The default for this option is `true`. The `delay` option is used to set the amount of time in milliseconds to wait after reading a tag to start listening again. The default for `delay` is 500 milliseconds. This option is ignored when `listen` is set to `false`.
 ```js
 var tessel = require('tessel');
 var rfid = require('rfid-pn532').use(
@@ -72,7 +74,7 @@ var rfid = require('rfid-pn532').use(
 ```
 
 ##TODO
-Implement commands for additional NFC card types
+Implement commands for additional NFC tag types
 
 ###License
 MIT or Apache 2.0, at your option
