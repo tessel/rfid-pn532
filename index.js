@@ -296,8 +296,7 @@ RFID.prototype._read = function (cardBaudRate, callback) {
         Card.SEL_RES = res[11];                                       // SEL_RES
         Card.idLength = res[12];                                      // NFCID Length
         Card.uid = res.slice(13, 13 + Card.idLength);                 // NFCID buffer
-        Card.uidStr = Card.uid.toString('hex');                       // NFCID string
-
+ 
         if (DEBUG) {
           console.log('Parsed card:\n', Card);
         }

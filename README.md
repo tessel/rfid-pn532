@@ -24,7 +24,7 @@ rfid.on('ready', function (version) {
   console.log('Ready to read RFID card');
 
   rfid.on('data', function(card) {
-    console.log('UID:', card.uidStr);
+    console.log('UID:', card.uid.toString('hex'));
   });
 });
 ```

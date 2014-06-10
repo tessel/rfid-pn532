@@ -14,7 +14,7 @@ rfid.on('ready', function (version) {
   console.log('ok');
 
   rfid.on('read', function(data) {
-    console.log('# uid:', data.uidStr);
+    console.log('# uid:', data.uid.toString('hex'));
     console.log(data.uid.length == 7 ? 'ok' : data.uid.length == 4 ? 'ok' : 'not ok', '- length of returned data');
     rfid.disable();
   });

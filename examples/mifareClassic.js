@@ -22,7 +22,7 @@ rfid.on('ready', function (version) {
   
   rfid.on('read', function(card) {
     console.log('Card found!');
-    console.log('uid:', card.uid);
+    console.log('UID:', card.uid.toString('hex'));
     console.log("Start auth #1");
 
 
