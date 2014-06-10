@@ -13,7 +13,7 @@ card has changed.
 var tessel = require('tessel');
 var rfidlib = require('../'); // Replace '../' with 'rfid-pn532' in your own code
 
-var rfid = rfidlib.use(tessel.port['A'], {read: false}); 
+var rfid = rfidlib.use(tessel.port['A'], {listen: false}); 
 
 
 rfid.on('ready', function (version) {

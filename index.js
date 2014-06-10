@@ -68,8 +68,8 @@ function RFID (hardware, options, callback) {
   self.autoReset = true;
   self.resetTimeout = 500;
   if (options) {
-    if (options.hasOwnProperty('read')) {
-      self.autoReset = options.read;
+    if (options.hasOwnProperty('listen')) {
+      self.autoReset = options.listen;
     }
     if (options.hasOwnProperty('delay')){
       self.resetTimeout = options.delay;
@@ -684,6 +684,7 @@ RFID.prototype.startListening = function (callback) {
 RFID.prototype.stopListening = function (callback) {
   var self = this;
   self.listening = false;
+  self.autoReset = false;
   if (callback) {
     callback();
   }

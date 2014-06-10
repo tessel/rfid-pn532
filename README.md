@@ -59,13 +59,13 @@ rfid.on('ready', function (version) {
 * [Mifare Classic](link to example for this in the "examples" folder). This example authorizes a mifare classic for read/write operations. First it will read a block of data off the card, write new data over the block, and then read back the data on the card to verify that the data on the card has changed.
 
 ###Configuration
-You can optionally configure how the RFID module listens for cards with an options argument in the `.use()` method. The supported options are `read` and `delay`. Set read to `true` to enable automatic reading of cards, or to `false` to manually control when the module should read cards. The default for this option is `true`. The `delay` option is used to set the amount of time in milliseconds to wait after reading a card to start listening again. The default for `delay` is 500 milliseconds. This option is ignored when `read` is set to `false`.
+You can optionally configure how the RFID module listens for cards with an options argument in the `.use()` method. The supported options are `listen` and `delay`. Set `listen` to `true` to automatically listen for cards coming in range, or to `false` to manually control when the module should read cards. The default for this option is `true`. The `delay` option is used to set the amount of time in milliseconds to wait after reading a card to start listening again. The default for `delay` is 500 milliseconds. This option is ignored when `listen` is set to `false`.
 ```js
 var tessel = require('tessel');
 var rfid = require('rfid-pn532').use(
   tessel.port['A'],
   {
-    read: true, 
+    listen: true, 
     delay: 500
   }
 );
