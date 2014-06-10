@@ -302,7 +302,11 @@ RFID.prototype._read = function (cardBaudRate, callback) {
           console.log('Parsed card:\n', Card);
         }
         if (callback) {
-          callback(err, Card);
+          if (!self.listening){
+            callback(new Error('Listening terminated'));
+          } else{
+            callback(err, Card);
+          }
         }
       };
       var waitLoop = setInterval(function () {
@@ -311,8 +315,7 @@ RFID.prototype._read = function (cardBaudRate, callback) {
           if (callback){
             callback(new Error('Listening terminated'));
           }
-        }
-        if (self._wireReadStatus() === PN532_I2C_READY) {
+        } else if (self._wireReadStatus() === PN532_I2C_READY) {
           clearInterval(waitLoop);
           // read data packet
           var dataLength = 32;
@@ -654,7 +657,7 @@ RFID.prototype.startListening = function (callback) {
   // Loop until nothing is listening
   if (self.numListeners) {
     self._getCard(PN532_MIFARE_ISO14443A, function (err, card) {
-      if (!err && card && card.uid) {
+      if (!err && card && card.uid && self.listening) {
         self.emit('data', card); // streams1-like event
         self.emit('read', card); // explicit read event
       } else if (callback) {
