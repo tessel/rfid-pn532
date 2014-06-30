@@ -8,7 +8,7 @@ then logs its UID to the console.
 *********************************************/
 
 var tessel = require('tessel');
-var rfidlib = require('../');// Replace '../' with 'rfid-pn532' in your own code
+var rfidlib = require('../'); // Replace '../' with 'rfid-pn532' in your own code
 
 var rfid = rfidlib.use(tessel.port['A']); 
 
