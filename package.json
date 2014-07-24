@@ -10,8 +10,9 @@
     "./examples": false
   },
   "devDependencies": {
-    "tinytap": "0.0.2"
+    "tinytap": "^0.2.0"
   },
+  "dependencies": {},
   "repository": "",
   "author": "Jon McKay <jon@technical.io>",
   "license": "MIT"
