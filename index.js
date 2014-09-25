@@ -697,6 +697,21 @@ RFID.prototype.disable = function () {
   this.stopListening();
 };
 
+RFID.prototype.setPollPeriod = function(ms, callback) {
+  if (ms === undefined || typeof ms != 'number') {
+    if (callback) {
+      return callback(new Error("Invalid poll period: " + ms + ". Should be a number of milliseconds."));
+    }
+  }
+
+  this.resetTimeout = ms;
+
+  if (callback) {
+    callback();
+  }
+  
+}
+
 function use (hardware, options, callback) {
   return new RFID(hardware, options, callback);
 }

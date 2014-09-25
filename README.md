@@ -32,7 +32,7 @@ rfid.on('ready', function (version) {
 ###Methods
 
 &#x20;<a href="#api-rfid-setPollPeriod-pollPeriod-callback-err" name="api-rfid-setPollPeriod-pollPeriod-callback-err">#</a> rfid<b>.setPollPeriod</b>( pollPeriod, callback(err) )  
- Set the time in milliseconds between each check for an RFID device.  
+ Set the time in milliseconds between each check for an RFID device. The poll period is 500ms by default.
 
 &#x20;<a href="#api-rfid-mifareClassicAuthenticateBlock-cardUID-blockNumber-authType-authKey-callback-err" name="api-rfid-mifareClassicAuthenticateBlock-cardUID-blockNumber-authType-authKey-callback-err">#</a> rfid<b>.mifareClassicAuthenticateBlock</b>( cardUID, blockNumber, authType, authKey, callback(err) )  
  Authenticate a block of memory to read or write on a MIFARE classic card. cardUID is the UID of the card to authenticate. blockNumber is the block address to authenticate. authType can be 0 for authorization type A or 1 for type B. authKey is an array containing the authorization key for the memory block, most commonly [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF].  
