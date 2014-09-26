@@ -2,24 +2,74 @@
 // http://creativecommons.org/publicdomain/zero/1.0/
 
 var portname = process.argv[2] || 'A';
-console.log('# connecting to port', portname);
-
+var test = require('tinytap');
+var async = require('async');
 var tessel = require('tessel');
-var rfid = require('../').use(tessel.port[portname], {read: true, delay: 0});
+var rfidLib = require('../')
+var rfid;
 
-console.log('1..2');
+test.count(7);
 
-rfid.on('ready', function (version) {
-  console.log('# ready to read RFID card');
-  console.log('ok');
+async.series([
+  test("Connecting to RFID card on correct port", function(t) {
+    rfidLib.use(tessel.port[portname], {read: true, delay: 0}, function(err, r) {
+      t.equal(err, null, "there is no error on creation in callback");
+      rfid = r;
+      var timeout = setTimeout(function() {
+        t.fail("Ready event not fired.");
+      }, 1000);
+      rfid.on('ready', function() {
+        clearTimeout(timeout);
+        t.ok(true, true, "RFID ready event is called");
+        t.end();
+      })
+    });
+  }),
 
-  rfid.on('read', function(data) {
-    console.log('# uid:', data.uid.toString('hex'));
-    console.log(data.uid.length == 7 ? 'ok' : data.uid.length == 4 ? 'ok' : 'not ok', '- length of returned data');
-    rfid.disable();
-  });
-});
+  test("Basic Reading", function(t) {
+    var timeout = setTimeout(function() {
+      t.fail("No RFID Card read.");
+    }, 1000);
+    rfid.once("read", function(data) {
+      clearTimeout(timeout);
+      console.log('data', Buffer.isBuffer);
+      t.equal(typeof data, 'object', "Argument on read event is an object");
+      t.equal(Buffer.isBuffer(data.uid), true, "Provided data returns a Buffer UID");
+      t.end();
+    });
+  }),
 
-rfid.on('error', function (err) {
-  console.log('not ok', '-', err);
-});
+  test("Change RFID Polling Period", function(t) {
+    var newPeriod = 2000;
+
+    rfid.setPollPeriod(newPeriod, function(err){
+      t.equal(err, null, "Error thrown on setting poll period with valid number");
+
+      var i = 0;
+      var first;
+      var timeout;
+      rfid.on('data', function(data) {
+        console.log('within data!');
+        i++;
+        if (i === 1) {
+          first = new Date();
+        }
+        else if (i === 2) {
+          clearTimeout(timeout);
+          rfid.removeAllListeners('data');
+          var time = new Date() - first;
+          t.equal(time > newPeriod, true, "Period not changed to be greater");
+          var proportionOver = Math.abs(time-newPeriod)/newPeriod;
+          t.equal(proportionOver < 0.2 , true, "Period is way over requested");
+          t.end();
+        }
+      });
+
+      timeout = setTimeout(function() {
+        t.fail("Data events not hit after poll period changed.");
+      }, newPeriod * 2)
+    })
+
+  })
+  ]
+)
