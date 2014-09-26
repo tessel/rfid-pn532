@@ -32,7 +32,6 @@ async.series([
     }, 1000);
     rfid.once("read", function(data) {
       clearTimeout(timeout);
-      console.log('data', Buffer.isBuffer);
       t.equal(typeof data, 'object', "Argument on read event is an object");
       t.equal(Buffer.isBuffer(data.uid), true, "Provided data returns a Buffer UID");
       t.end();
@@ -49,7 +48,6 @@ async.series([
       var first;
       var timeout;
       rfid.on('data', function(data) {
-        console.log('within data!');
         i++;
         if (i === 1) {
           first = new Date();
