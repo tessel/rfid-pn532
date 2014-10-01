@@ -49,6 +49,7 @@ function RFID (hardware, options, callback) {
   }
 
   self.hardware = hardware;
+  self.ready = false;
   self.irq = hardware.digital[2];
   self.irqcallback = function () {
     self.emit('irq', null, 0);
@@ -86,7 +87,13 @@ function RFID (hardware, options, callback) {
           callback(err);
         }
       } else {
-        self.emit('ready');
+        if (callback) {
+          callback(null, self);
+        }
+        setImmediate(function() {
+          self.emit('ready');
+        });
+        self.ready = true;
       }
     });
   }, WAKE_UP_TIME);
@@ -97,7 +104,10 @@ function RFID (hardware, options, callback) {
       // Add to the number of things listening
       self.numListeners += 1;
       // If we're not already listening
-      if (!self.listening) {
+      if (!self.ready) {
+        self.once('ready', self.startListening.bind(self));
+      }
+      else if (!self.listening) {
         // Start listening
         self.startListening();
       }
@@ -119,9 +129,6 @@ function RFID (hardware, options, callback) {
   self.on('removeAllListeners', function () {
     self.numListeners = 0;
   });
-  if (callback) {
-    callback(null, self);
-  }
 }
 
 util.inherits(RFID, EventEmitter);
