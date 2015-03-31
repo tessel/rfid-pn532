@@ -14,7 +14,10 @@
     "async": "^0.9.0"
   },
   "dependencies": {},
-  "repository": "",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:tessel/rfid-pn532.git"
+  },
   "author": "Jon McKay <jon@technical.io>",
   "license": "MIT"
 }
