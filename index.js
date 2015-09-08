@@ -61,7 +61,11 @@ function RFID (hardware, options, callback) {
   self.nRST.low(); // Toggle reset every time we initialize
 
   self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
-  self.i2c._initialize();
+  
+  // This function only exists on the Tessel 1
+  if (typeof self.i2c._initialize === 'function') {
+    self.i2c._initialize();
+  }
 
   self.numListeners = 0;
   self.listening = false;
