@@ -12,7 +12,7 @@
 
 //  todo: finish read mem, start anyting related to changing mem contents
 
-var DEBUG = 0; // 1 if debugging, 0 if not
+var DEBUG = 1; // 1 if debugging, 0 if not
 
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
@@ -61,7 +61,7 @@ function RFID (hardware, options, callback) {
   self.nRST.low(); // Toggle reset every time we initialize
 
   self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
-  
+
   // This function only exists on the Tessel 1
   if (typeof self.i2c._initialize === 'function') {
     self.i2c._initialize();
@@ -307,7 +307,7 @@ RFID.prototype._read = function (cardBaudRate, callback) {
         Card.SEL_RES = res[11];                                       // SEL_RES
         Card.idLength = res[12];                                      // NFCID Length
         Card.uid = res.slice(13, 13 + Card.idLength);                 // NFCID buffer
- 
+
         if (DEBUG) {
           console.log('Parsed card:\n', Card);
         }
@@ -447,10 +447,16 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
   });
 
   self.once('irq', function (err1, data) {
+    if (DEBUG) {
+      console.log('irq: err1', err1, 'data', data);
+    }
     if (err1 && callback) {
       callback(err1, data);
     }
     self._readAckFrame(function (err2, ackbuff) {
+      if (DEBUG) {
+        console.log('_readAckFrame: err2', err2, 'data', data);
+      }
       if (err2 && callback) {
         callback(err2, null);
       } else if (callback) {
@@ -720,7 +726,7 @@ RFID.prototype.setPollPeriod = function(ms, callback) {
   if (callback) {
     callback();
   }
-  
+
 }
 
 function use (hardware, options, callback) {
