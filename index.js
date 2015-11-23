@@ -21,15 +21,14 @@ var PN532_COMMAND_INLISTPASSIVETARGET = 0x4A;
 var PN532_COMMAND_GETFIRMWAREVERSION = 0x02;
 var PN532_COMMAND_SAMCONFIGURATION = 0x14;
 var PN532_COMMAND_INDATAEXCHANGE = 0x40;
-var PN532_I2C_READY = 0x01;
 var PN532_PREAMBLE = 0x00;
 var PN532_STARTCODE1 = 0x00;
 var PN532_STARTCODE2 = 0xFF;
 var PN532_POSTAMBLE = 0x00;
 var PN532_I2C_ADDRESS = 0x48 >> 1;
 var PN532_I2C_READBIT = 0x01;
-var PN532_I2C_BUSY = 0x00;
-var PN532_I2C_READY = 0x01;
+var PN532_I2C_READY = 0x00;
+var PN532_I2C_BUSY = 0x01;
 var PN532_I2C_READYTIMEOUT = 20;
 var PN532_HOSTTOPN532 = 0xD4;
 var PN532_MIFARE_ISO14443A = 0x00;
@@ -51,87 +50,86 @@ function RFID (hardware, options, callback) {
   self.hardware = hardware;
   self.ready = false;
   self.irq = hardware.digital[2];
-  self.irqcallback = function () {
-    self.emit('irq', null, 0);
-  };
-  self.irq.on('fall', self.irqcallback);
+  self.irq.input();
+
   self.nRST = hardware.digital[1];
 
-  self.nRST.output();
-  self.nRST.low(); // Toggle reset every time we initialize
+  // Toggle reset every time we initialize
+  self.nRST.write(false, function continueInit() {
 
-  self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
+    self.i2c = new hardware.I2C(PN532_I2C_ADDRESS);
 
-  // This function only exists on the Tessel 1
-  if (typeof self.i2c._initialize === 'function') {
-    self.i2c._initialize();
-  }
-
-  self.numListeners = 0;
-  self.listening = false;
-
-  self.autoReset = true;
-  self.resetTimeout = 500;
-  if (options) {
-    if (options.hasOwnProperty('listen')) {
-      self.autoReset = options.listen;
+    // This function only exists on the Tessel 1
+    if (typeof self.i2c._initialize === 'function') {
+      self.i2c._initialize();
     }
-    if (options.hasOwnProperty('delay')){
-      self.resetTimeout = options.delay;
-    }
-  }
 
-  self.irq.input();
-  setTimeout(function () {
-    self.nRST.high();
-    self._getFirmwareVersion(function (err, version) {
-      if (!version) {
-        self.emit('error', err);
-        if (callback) {
-          callback(err);
-        }
-      } else {
-        if (callback) {
-          callback(null, self);
-        }
-        setImmediate(function() {
-          self.emit('ready');
+    self.numListeners = 0;
+    self.listening = false;
+
+    self.autoReset = true;
+    self.resetTimeout = 300;
+    if (options) {
+      if (options.hasOwnProperty('listen')) {
+        self.autoReset = options.listen;
+      }
+      if (options.hasOwnProperty('delay')){
+        self.resetTimeout = options.delay;
+      }
+    }
+
+    setTimeout(function () {
+      self.nRST.write(true, function continueAfterRst() {
+        self._getFirmwareVersion(function (err, version) {
+          if (!version) {
+            self.emit('error', err);
+            if (callback) {
+              callback(err);
+            }
+          } else {
+            if (callback) {
+              callback(null, self);
+            }
+            setImmediate(function() {
+              self.emit('ready');
+            });
+            self.ready = true;
+          }
         });
-        self.ready = true;
+      });
+    }, WAKE_UP_TIME);
+
+    // If we get a new listener
+    self.on('newListener', function (event) {
+      if (event == 'data' || event == 'read') {
+        // Add to the number of things listening
+        self.numListeners += 1;
+        // If we're not already listening
+        if (!self.ready) {
+          self.once('ready', self.startListening.bind(self));
+        }
+        else if (!self.listening) {
+          // Start listening
+          self.startListening();
+        }
       }
     });
-  }, WAKE_UP_TIME);
 
-  // If we get a new listener
-  self.on('newListener', function (event) {
-    if (event == 'data' || event == 'read') {
-      // Add to the number of things listening
-      self.numListeners += 1;
-      // If we're not already listening
-      if (!self.ready) {
-        self.once('ready', self.startListening.bind(self));
+    // If we remove a listener
+    self.on('removeListener', function (event) {
+      if (event == 'data' || event == 'read') {
+        // Remove from the number of things listening
+        self.numListeners -= 1;
+        // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
+        if (self.numListeners < 1) {
+          self.listening = false;
+        }
       }
-      else if (!self.listening) {
-        // Start listening
-        self.startListening();
-      }
-    }
-  });
+    });
 
-  // If we remove a listener
-  self.on('removeListener', function (event) {
-    if (event == 'data' || event == 'read') {
-      // Remove from the number of things listening
-      self.numListeners -= 1;
-      // Because we listen in a while loop, if this.listening goes to 0, we'll stop listening automatically
-      if (self.numListeners < 1) {
-        self.listening = false;
-      }
-    }
-  });
-
-  self.on('removeAllListeners', function () {
-    self.numListeners = 0;
+    self.on('removeAllListeners', function () {
+      self.numListeners = 0;
+    });
   });
 }
 
@@ -319,27 +317,20 @@ RFID.prototype._read = function (cardBaudRate, callback) {
           }
         }
       };
-      var waitLoop = setInterval(function () {
-        if (!self.listening){
-          clearInterval(waitLoop);
-          if (callback){
-            callback(new Error('Listening terminated'));
-          }
-        } else if (self._wireReadStatus() === PN532_I2C_READY) {
-          clearInterval(waitLoop);
-          // read data packet
-          var dataLength = 32;
-          self._wireReadData(dataLength, function (err, res) {
-            if (!err && self._checkPacket(res)) {
-              parseCard(err, res);
-            } else {
-              if (callback) {
-                callback(err || new Error('invalid packet'), res);
-              }
+      // When the module is ready to respond
+      self.irq.once('low', function ready() {
+        var dataLength = 32;
+        // Read the card data
+        self._wireReadData(dataLength, function (err, res) {
+          if (!err && self._checkPacket(res)) {
+            parseCard(err, res);
+          } else {
+            if (callback) {
+              callback(err || new Error('invalid packet'), res);
             }
-          });
-        }
-      }, 50);
+          }
+        });
+      });
     }
   });
 };
@@ -437,6 +428,7 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
       Callback function; gets err, reply as args
   */
   var self = this;
+
   self._wireSendCommand(cmd, function (err, data) {
     if (DEBUG) {
       console.log('kickback from readreg:\n', err, '\n', data);
@@ -446,19 +438,15 @@ RFID.prototype._sendCommandCheckAck = function (cmd, callback) {
     }
   });
 
-  self.once('irq', function (err1, data) {
-    if (DEBUG) {
-      console.log('irq: err1', err1, 'data', data);
-    }
-    if (err1 && callback) {
-      callback(err1, data);
-    }
-    self._readAckFrame(function (err2, ackbuff) {
+  // When the module is ready to respond
+  self.irq.once('low', function ready() {
+    // Read the acknowledgement frame and ensure is formatted properly
+    self._readAckFrame(function (err, ackbuff) {
       if (DEBUG) {
-        console.log('_readAckFrame: err2', err2, 'data', data);
+        console.log('_readAckFrame: err', err, 'data', ackbuff);
       }
-      if (err2 && callback) {
-        callback(err2, null);
+      if (err && callback) {
+        callback(err, null);
       } else if (callback) {
         callback((!ackbuff || !self._checkAck(ackbuff)) ? new Error('ackbuff was invalid') : null, ackbuff);
       }
@@ -482,17 +470,6 @@ RFID.prototype._wireReadData = function (numBytes, callback) {
       callback(err, reply);
     }
   });
-};
-
-RFID.prototype._wireReadStatus = function () {
-  //  Check the status of the IRQ pin
-  var x = this.irq.read();
-  if (x === 1) {
-    return PN532_I2C_BUSY;
-  }
-  else {
-    return PN532_I2C_READY;
-  }
 };
 
 RFID.prototype._wireSendCommand = function (cmd, callback) {
@@ -568,24 +545,21 @@ RFID.prototype.mifareClassicAuthenticateBlock = function( uid, blockNumber, keyN
         callback(err, ack);
       }
     } else {
-      var waitLoop = setInterval(function () {
-        if (self._wireReadStatus() === PN532_I2C_READY) {
-          clearInterval(waitLoop);
-          // read data packet
-          var dataLength = 26;
-          self._wireReadData(dataLength, function (err, res) {
-            if (!err && res[8] == 0x00) {
-              if (callback) {
-                callback(err);
-              }
-            } else {
-              if (callback) {
-                callback(err || new Error('invalid packet'), res);
-              }
+      self.irq.once('low', function ready() {
+        // read data packet
+        var dataLength = 26;
+        self._wireReadData(dataLength, function (err, res) {
+          if (!err && res[8] == 0x00) {
+            if (callback) {
+              callback(err);
             }
-          });
-        }
-      }, 50);
+          } else {
+            if (callback) {
+              callback(err || new Error('invalid packet'), res);
+            }
+          }
+        });
+      });
     }
   });
 };
@@ -602,31 +576,27 @@ RFID.prototype.mifareClassicReadBlock = function (blockNumber, callback) {
   self._sendCommandCheckAck(commandBuffer, function (err, ack) {
     if (err || !ack) {
       if (callback) {
-        console.log("Ack error",err);
         callback(err, ack);
       }
+      return;
     } else {
-      var waitLoop = setInterval(function () {
-        if (self._wireReadStatus() === PN532_I2C_READY) {
-          clearInterval(waitLoop);
-          // read data packet
-          var dataLength = 26;
-          self._wireReadData(dataLength, function (err, res) {
-            if (!err && res[8] == 0x00) {
-              if (callback){
-                callback(err, res.slice(9,9+16));
-              }
-            } else {
-              if (callback) {
-                callback(err || new Error('invalid packet'), res);
-              }
+      self.irq.once('low', function ready() {
+        // read data packet
+        var dataLength = 26;
+        self._wireReadData(dataLength, function (err, res) {
+          if (!err && res[8] == 0x00) {
+            if (callback){
+              callback(err, res.slice(9,9+16));
             }
-          });
-        }
-      }, 50);
+          } else {
+            if (callback) {
+              callback(err || new Error('invalid packet'), res);
+            }
+          }
+        });
+      });
     }
   });
-
 };
 
 RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) {
@@ -644,9 +614,15 @@ RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) 
         callback(err, ack);
       }
     } else {
-      var waitLoop = setInterval(function () {
-        if (self._wireReadStatus() === PN532_I2C_READY) {
-          clearInterval(waitLoop);
+      // When the module is ready to respond
+      self.irq.once('low', function() {
+        if (err) {
+          if (callback) {
+            callback(err);
+          }
+          return;
+        }
+        else {
           // read data packet
           var dataLength = 26;
           self._wireReadData(dataLength, function (err, res) {
@@ -661,7 +637,7 @@ RFID.prototype.mifareClassicWriteBlock = function (blockNumber, data, callback) 
             }
           });
         }
-      }, 50);
+      });
     }
   });
 };
@@ -710,7 +686,7 @@ RFID.prototype.stopListening = function (callback) {
 };
 
 RFID.prototype.disable = function () {
-  this.irq.removeListener('fall', this.irqcallback);
+  this.irq.removeAllListeners();
   this.stopListening();
 };
 
