@@ -1,7 +1,7 @@
 #RFID
 Driver for the rfid-pn532 Tessel RFID module. The hardware documentation for this module can be found [here](https://github.com/tessel/hardware/blob/master/modules-overview.md#rfid).
 
-If you run into any issues you can ask for support on the [RFID Module Forums](http://forums.tessel.io/category/rfid).
+If you run into any issues you can ask for support on the [Module Forums](https://forums.tessel.io/c/modules).
 
 ###Installation
 ```sh
