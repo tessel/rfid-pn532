@@ -33,35 +33,35 @@ rfid.on('ready', function (version) {
 
 ### Methods
 
-* &#x20;<a href="#api-rfid-setPollPeriod-pollPeriod-callback-err" name="api-rfid-setPollPeriod-pollPeriod-callback-err"></a> rfid<b>.setPollPeriod</b>( pollPeriod, callback(err) )  
+&#x20;<a href="#api-rfid-setPollPeriod-pollPeriod-callback-err" name="api-rfid-setPollPeriod-pollPeriod-callback-err">#</a> rfid<b>.setPollPeriod</b>( pollPeriod, callback(err) )  
 Set the time in milliseconds between each check for an RFID device. The poll period is 500ms by default.
 
-* &#x20;<a href="#api-rfid-mifareClassicAuthenticateBlock-cardUID-blockNumber-authType-authKey-callback-err" name="api-rfid-mifareClassicAuthenticateBlock-cardUID-blockNumber-authType-authKey-callback-err"></a> rfid<b>.mifareClassicAuthenticateBlock</b>( cardUID, blockNumber, authType, authKey, callback(err) )  
+&#x20;<a href="#api-rfid-mifareClassicAuthenticateBlock-cardUID-blockNumber-authType-authKey-callback-err" name="api-rfid-mifareClassicAuthenticateBlock-cardUID-blockNumber-authType-authKey-callback-err">#</a> rfid<b>.mifareClassicAuthenticateBlock</b>( cardUID, blockNumber, authType, authKey, callback(err) )  
 Authenticate a block of memory to read or write on a MIFARE classic card. cardUID is the UID of the card to authenticate. blockNumber is the block address to authenticate. authType can be 0 for authorization type A or 1 for type B. authKey is an array containing the authorization key for the memory block, most commonly [0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF].  
 
-* &#x20;<a href="#api-rfid-mifareClassicReadBlock-blockNumber-callback-err-data" name="api-rfid-mifareClassicReadBlock-blockNumber-callback-err-data"></a> rfid<b>.mifareClassicReadBlock</b>( blockNumber, callback(err, data) )  
+&#x20;<a href="#api-rfid-mifareClassicReadBlock-blockNumber-callback-err-data" name="api-rfid-mifareClassicReadBlock-blockNumber-callback-err-data">#</a> rfid<b>.mifareClassicReadBlock</b>( blockNumber, callback(err, data) )  
 Read a block of memory on a MIFARE classic card. blockNumber is the address of the block to read.  
 
-* &#x20;<a href="#api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err" name="api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err"></a> rfid<b>.mifareClassicWriteBlock</b>( blockNumber, data, callback(err) )  
+&#x20;<a href="#api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err" name="api-rfid-mifareClassicWriteBlock-blockNumber-data-callback-err">#</a> rfid<b>.mifareClassicWriteBlock</b>( blockNumber, data, callback(err) )  
 Write a block of memory on a MIFARE classic card. blockNumber is the address of the block to write. data is an array containing the 16 bytes of data to write to the block.  
 
-* &#x20;<a href="#api-rfid-startListening-callback-err-Tell-the-RFID-module-to-start-listening-for-targets-Only-necessary-when-configuring-the-module-for-manual-target-reading" name="api-rfid-startListening-callback-err-Tell-the-RFID-module-to-start-listening-for-targets-Only-necessary-when-configuring-the-module-for-manual-target-reading"></a> rfid<b>.startListening</b>( callback(err) )  
+&#x20;<a href="#api-rfid-startListening-callback-err-Tell-the-RFID-module-to-start-listening-for-targets-Only-necessary-when-configuring-the-module-for-manual-target-reading" name="api-rfid-startListening-callback-err-Tell-the-RFID-module-to-start-listening-for-targets-Only-necessary-when-configuring-the-module-for-manual-target-reading">#</a> rfid<b>.startListening</b>( callback(err) )  
 Tell the RFID module to start listening for targets. Only necessary when configuring the module for manual target reading.  
 
-* &#x20;<a href="#api-rfid-stopListening-callback-Tell-the-RFID-module-to-stop-listening-for-targets-This-will-also-disable-automatic-listening-for-targets" name="api-rfid-stopListening-callback-Tell-the-RFID-module-to-stop-listening-for-targets-This-will-also-disable-automatic-listening-for-targets"></a> rfid<b>.stopListening</b>( callback() )  
+&#x20;<a href="#api-rfid-stopListening-callback-Tell-the-RFID-module-to-stop-listening-for-targets-This-will-also-disable-automatic-listening-for-targets" name="api-rfid-stopListening-callback-Tell-the-RFID-module-to-stop-listening-for-targets-This-will-also-disable-automatic-listening-for-targets">#</a> rfid<b>.stopListening</b>( callback() )  
 Tell the RFID module to stop listening for targets. This will also disable automatic listening for targets.  
 
 ### Events
-* &#x20;<a href="#api-rfid-on-data-callback-data" name="api-rfid-on-data-callback-data"></a> rfid<b>.on</b>( 'data', callback(data) )  
+&#x20;<a href="#api-rfid-on-data-callback-data" name="api-rfid-on-data-callback-data">#</a> rfid<b>.on</b>( 'data', callback(data) )  
 Emitted when an RFID target comes within range of the module.
 
-* &#x20;<a href="#api-rfid-on-read-callback-data" name="api-rfid-on-read-callback-data"></a> rfid<b>.on</b>( 'read', callback(data) )  
+&#x20;<a href="#api-rfid-on-read-callback-data" name="api-rfid-on-read-callback-data">#</a> rfid<b>.on</b>( 'read', callback(data) )  
 Same as 'data' event.
 
-* &#x20;<a href="#api-rfid-on-error-callback-err" name="api-rfid-on-error-callback-err"></a> rfid<b>.on</b>( 'error', callback(err) )  
+&#x20;<a href="#api-rfid-on-error-callback-err" name="api-rfid-on-error-callback-err">#</a> rfid<b>.on</b>( 'error', callback(err) )  
 Emitted upon error.  
 
-* &#x20;<a href="#api-rfid-on-ready-callback" name="api-rfid-on-ready-callback"></a> rfid<b>.on</b>( 'ready', callback() )  
+&#x20;<a href="#api-rfid-on-ready-callback" name="api-rfid-on-ready-callback">#</a> rfid<b>.on</b>( 'ready', callback() )  
 Emitted upon first successful communication between the Tessel and the module.
 
 ### Further Examples  
