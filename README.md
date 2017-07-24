@@ -84,3 +84,4 @@ var rfid = require('rfid-pn532').use(
 Implement commands for additional NFC card/tag types
 
 ### License
+MIT or Apache 2.0, at your option
